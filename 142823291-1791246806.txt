@@ -1,0 +1,40 @@
+-- Wurst remote log
+-- place 142823291
+-- 6 remotes
+
+----------------------------------------------------------------------
+Workspace.TheXxDeXx.Gun.Shoot
+  class RemoteEvent  ·  FireServer  ·  2 calls
+  args  CFrame(-83.7156982, 305.909973, 8952.21777, -0.877266705, -1.03728169e-07, -0.480003268, -8.57748006e-08, 1, -5.93345817e-08, 0.480003268, -1.08800684e-08, -0.877266705), CFrame(-79.6762543, 303.110748, 8999.26465, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+game:GetService("ReplicatedStorage") -- Workspace.TheXxDeXx.Gun.Shoot
+-- :FireServer(CFrame(-83.7156982, 305.909973, 8952.21777, -0.877266705, -1.03728169e-07, -0.480003268, -8.57748006e-08, 1, -5.93345817e-08, 0.480003268, -1.08800684e-08, -0.877266705), CFrame(-79.6762543, 303.110748, 8999.26465, 1, 0, 0, 0, 1, 0, 0, 0, 1))
+----------------------------------------------------------------------
+ReplicatedStorage.Remotes.Extras.CanChangeServerSettings
+  class RemoteFunction  ·  InvokeServer  ·  1 calls
+  args  
+game:GetService("ReplicatedStorage") -- ReplicatedStorage.Remotes.Extras.CanChangeServerSettings
+-- :InvokeServer()
+----------------------------------------------------------------------
+ReplicatedStorage.Remotes.Extras.GetData
+  class RemoteFunction  ·  InvokeServer  ·  1 calls
+  args  "RadioSongs"
+game:GetService("ReplicatedStorage") -- ReplicatedStorage.Remotes.Extras.GetData
+-- :InvokeServer("RadioSongs")
+----------------------------------------------------------------------
+ReplicatedStorage.Trade.GetTradeStatus
+  class RemoteFunction  ·  InvokeServer  ·  1 calls
+  args  
+game:GetService("ReplicatedStorage") -- ReplicatedStorage.Trade.GetTradeStatus
+-- :InvokeServer()
+----------------------------------------------------------------------
+ReplicatedStorage.Remotes.Extras.SearchSongs
+  class RemoteFunction  ·  InvokeServer  ·  1 calls
+  args  ""
+game:GetService("ReplicatedStorage") -- ReplicatedStorage.Remotes.Extras.SearchSongs
+-- :InvokeServer("")
+----------------------------------------------------------------------
+ReplicatedStorage.Remotes.Gameplay.GetLastRoundRewards
+  class RemoteFunction  ·  InvokeServer  ·  1 calls
+  args  
+game:GetService("ReplicatedStorage") -- ReplicatedStorage.Remotes.Gameplay.GetLastRoundRewards
+-- :InvokeServer()
