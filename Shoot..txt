@@ -1,0 +1,610 @@
+Shoot. 
+Origin Remote Path
+local function GetNil(Name, DebugId)
+	for _, Object in getnilinstances() do
+		if Object.Name == Name and Object:GetDebugId() == DebugId then
+			return Object
+		end
+	end
+end
+
+local Event = GetNil("Shoot", "1_2384153")
+Code:
+
+local function GetNil(Name, DebugId)
+	for _, Object in getnilinstances() do
+		if Object.Name == Name and Object:GetDebugId() == DebugId then
+			return Object
+		end
+	end
+end
+
+local Event = GetNil("Shoot", "1_2384153")
+Event:FireServer(
+    CFrame.new(-9.6880016326904297, 305.159423828125, 9005.34765625, 0.92552375793457031, -0.21161344647407532, 0.31404682993888855, 0, 0.8292992115020752, 0.55880481004714966, -0.37868937849998474, -0.51718711853027344, 0.7675362229347229),
+    CFrame.new(-17.177188873291016, 291.83340454101562, 8987.0439453125, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+)
+Function Info:
+local Info = {
+    Function = {
+        Source = "src/games/MM2/Blatant/Shoot.lua",
+        Type = "Luau function",
+        Name = "fireGunAtTarget",
+        Address = "function: 0x45443d1c17c28c44",
+        Protos = {
+            function(arg1)
+                --[[Name: reject | Line: 539
+                Upvalues: 0
+                Function Hash: 7d3eaa23d5d97b629226132cf427c7d88b10142af7eeaa1a9e190c46e28cc16f690e59de8dc8ff6c87ee4c55321cd9a6
+                LuaEncode: Unable to serialize function]]
+                return
+            end
+        },
+        Upvalues = {
+            {
+                shootKey = Enum.KeyCode.Q,
+                roleEspAll = false,
+                gunLeadBias = 0,
+                sheriffColor = Color3.new(0, 0.60000002384185791, 1),
+                motionSampleHz = 120,
+                innocentTransparency = 0.62,
+                shootWallCheck = true,
+                autoGetGunDelay = 0.25,
+                deadColor = Color3.new(0.66666668653488159, 0.66666668653488159, 0.70588237047195435),
+                gunTransparency = 0.55000000000000004,
+                blurtRepeat = false,
+                coinTransparency = 0.80000000000000004,
+                silentSweep = 0.5,
+                roleEspInnocent = false,
+                roleTagsAll = false,
+                predictionRtt = 0.12963125106162071,
+                shootMode = "Murder",
+                shootTarget = "",
+                instantRoleNotify = false,
+                silentSpawn = "Through",
+                autoPlayId = "",
+                deadTransparency = 0.71999999999999997,
+                gunColor = Color3.new(1, 0.84313726425170898, 0),
+                trapTransparency = 0.69999999999999996,
+                trapColor = Color3.new(0.56862747669219971, 0.098039217293262482, 0.098039217293262482),
+                roleEspSheriff = false,
+                coinColor = Color3.new(0.90196079015731812, 0.86274510622024536, 0.25490197539329529),
+                blurtFake = false,
+                innocentColor = Color3.new(0, 1, 0.031372550874948502),
+                silentAim = false,
+                roleEspRoundOnly = false,
+                roleEspMurderer = false,
+                heroTransparency = 0.5,
+                heroColor = Color3.new(1, 0.76862746477127075, 0),
+                autoTuneLead = true,
+                sheriffTransparency = 0.5,
+                murdererColor = Color3.new(1, 0, 0.015686275437474251),
+                murdererTransparency = 0.5,
+                blurtDelay = 1.5,
+                getGunKey = Enum.KeyCode.G,
+                showMissCooldown = false
+            },
+            "A wall blocks the shot.",
+            function(arg1, arg2, arg3)
+                --[[Name: getPlayerWeapon | Line: 187
+                Upvalues: 1
+                Function Hash: c67aef676fba4b5a307108b696e3fa95ac824f2264afd6925afbb870345855c1c05503aca43d15c4d77bab5df6a8a278
+                LuaEncode: Unable to serialize function]]
+                return
+            end,
+            function(arg1, arg2)
+                --[[Name: getGunOriginCFrame | Line: 1587
+                Upvalues: 0
+                Function Hash: d9fbe976e420020f79720ddcf4b07b5f149b4031fc34c14c19572559914e79f566f162401f12fe464d94b5659efcce7e
+                LuaEncode: Unable to serialize function]]
+                return
+            end,
+            function(arg1, arg2, arg3)
+                --[[Name: computeGunAim | Line: 129
+                Upvalues: 14
+                Function Hash: df7ccd610fe6af48f4f525b3db03fa82d6606f2a0a7ea3ab2d16d2b352a3b6150c4a1e1e864077b98a18dc7f40c9ba4f
+                LuaEncode: Unable to serialize function]]
+                return
+            end,
+            function(arg1, arg2, arg3, arg4)
+                --[[Name: buildSilentShot | Line: 436
+                Upvalues: 5
+                Function Hash: 9556bfd97fa99ebd3b9efc9e32c00fd2bb4904cfa5ec6d48e9889006fe8927e71709bebc9c67ab9ff1422766b71649c8
+                LuaEncode: Unable to serialize function]]
+                return
+            end,
+            {
+                destroy = function(arg1)
+                    --[[Name: destroy | Line: 3207
+                    Upvalues: 2
+                    Function Hash: 2314957f2aed6557b20212e4b687a161b2b7499d56c45dc13a97e4909513f1c0e17dc1435ddbadb40d4c19c7293642de
+                    LuaEncode: Unable to serialize function]]
+                    return
+                end,
+                status = function(arg1)
+                    --[[Name: status | Line: 3189
+                    Upvalues: 2
+                    Function Hash: 5c526502f41f92c9753a2459914ffd51ac96f827fa5f15e75adf0b20b1baf1b1651f283e45f069f60437b8140c105926
+                    LuaEncode: Unable to serialize function]]
+                    return
+                end,
+                noteAuthoredShot = function(arg1, arg2)
+                    --[[Name: noteAuthoredShot | Line: 3091
+                    Upvalues: 9
+                    Function Hash: 786c49154237b25d2a5b065a8e76d0ccad8c0a16929676f4d2711130cd3538bc7f4a9ce8ed6e39229ec300f49aa8eb81
+                    LuaEncode: Unable to serialize function]]
+                    return
+                end,
+                start = function(arg1)
+                    --[[Name: start | Line: 3014
+                    Upvalues: 8
+                    Function Hash: 2be6d15d713bf437d1a6542afcdb54b4703855ed8e973c7ef160acbc6f3afcb8ea5d51c6f65bdfb9f003e982d165e7f1
+                    LuaEncode: Unable to serialize function]]
+                    return
+                end,
+                save = function(arg1, arg2)
+                    --[[Name: save | Line: 3072
+                    Upvalues: 1
+                    Function Hash: e8cef24f491d190783d071acee857f3f218963844dd3b66acda299dff985a26ba873138a37d65ead2b481c048bc52219
+                    LuaEncode: Unable to serialize function]]
+                    return
+                end,
+                getEstimates = function(arg1)
+                    --[[Name: getEstimates | Line: 3087
+                    Upvalues: 1
+                    Function Hash: 5534c3d0cc31a5c09a125608277e62d98f8ce9cedaae6fa587844d3b20a066e366785e2bcc64266f05d00e698d16924f
+                    LuaEncode: Unable to serialize function]]
+                    return
+                end,
+                reset = function(arg1)
+                    --[[Name: reset | Line: 3076
+                    Upvalues: 5
+                    Function Hash: e9c358308a91ed8c62dae3936f9ccf4c4c4825368c32c45247449b945f312ee4323aebb15ab286f640c5c1c218b261ec
+                    LuaEncode: Unable to serialize function]]
+                    return
+                end
+            },
+            function(arg1)
+                --[[Name: macroUnequip | Line: 42
+                Upvalues: 1
+                Function Hash: be0058417e7507d5f9e32dc48a6176d81ed33a8a65255c462e7f7a1ae3b9d679cfb4cdc649c986db340fe90580727b7e
+                LuaEncode: Unable to serialize function]]
+                return
+            end,
+            function(arg1, arg2, arg3)
+                --[[Name: bystanderOnSegment | Line: 402
+                Upvalues: 1
+                Function Hash: 512856a381377a849e75ba3dd9650a4b1cc43eb5d62183fc35939e9b89af0b5c751b7509d199fefe57179a573366c233
+                LuaEncode: Unable to serialize function]]
+                return
+            end,
+            4
+        },
+        Arguments = {
+            CFrame.new(-9.6880016326904297, 305.159423828125, 9005.34765625, 0.92552375793457031, -0.21161344647407532, 0.31404682993888855, 0, 0.8292992115020752, 0.55880481004714966, -0.37868937849998474, -0.51718711853027344, 0.7675362229347229),
+            CFrame.new(-17.177188873291016, 291.83340454101562, 8987.0439453125, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+        },
+        Constants = {
+            "silentAim",
+            "silent",
+            "quiet",
+            "getCharacterParts",
+            nil,
+            "Character",
+            "No selected shoot target was found.",
+            "Your character is not available.",
+            "LocalPlayer",
+            nil,
+            "Gun",
+            "Backpack",
+            "FindFirstChildOfClass",
+            "You do not have the sheriff gun.",
+            "Parent",
+            "Humanoid",
+            "IsA",
+            "EquipTool",
+            "Equipping the sheriff gun.",
+            "task",
+            "wait",
+            nil,
+            "Shoot",
+            "FindFirstChild",
+            "ignoreVisibility",
+            true,
+            {
+                ignoreVisibility = true
+            },
+            "The murderer has no usable body to aim at.",
+            "no body",
+            "The murderer is too close to shoot cleanly.",
+            "too close",
+            "A wall blocks the shot.",
+            "obstructed",
+            "The murderer is turning too hard to lead.",
+            "turning too hard",
+            "RemoteEvent",
+            "",
+            "The gun has no usable origin.",
+            "The murderer is unavailable or obstructed.",
+            "maxError",
+            "errorRadius",
+            "Shot accuracy is too low to fire.",
+            "silentSpawn",
+            "Another player blocks the silent shot.",
+            "state",
+            "mm2ShotFeedback",
+            "queue",
+            nil,
+            "pending",
+            nil,
+            nil,
+            "variant",
+            "at",
+            "offset",
+            {
+                at = 0,
+                offset = 0,
+                variant = 0
+            },
+            "os",
+            "clock",
+            nil,
+            10,
+            "math",
+            "floor",
+            nil,
+            "lastSilentShotInfo",
+            "FireServer",
+            "noteAuthoredShot",
+            "kind",
+            "gun",
+            "tool",
+            "toolName",
+            "originPos",
+            "aimPos",
+            "target",
+            "settings",
+            {
+                originPos = 0,
+                aimPos = 0,
+                toolName = 0,
+                silent = true,
+                settings = 0,
+                variant = 0,
+                target = 0,
+                kind = "gun",
+                tool = 0,
+                offset = 0
+            },
+            "Name",
+            "Position",
+            "mode",
+            "Silent",
+            "spawn",
+            "sweep",
+            "motionHz",
+            {
+                sweep = 0,
+                mode = "Silent",
+                motionHz = 0,
+                spawn = 0
+            },
+            "silentSweep",
+            "motionSampleHz",
+            "pcall",
+            nil,
+            "endpoint",
+            "Magnitude",
+            0.050000000000000003,
+            4,
+            "Unit",
+            "CFrame",
+            "lookAt",
+            nil,
+            "new",
+            nil,
+            false,
+            {
+                originPos = 0,
+                silent = false,
+                settings = 0,
+                target = 0,
+                aimPos = 0,
+                kind = "gun",
+                tool = 0,
+                toolName = 0
+            },
+            "Normal",
+            "wallCheck",
+            "leadBias",
+            {
+                motionHz = 0,
+                mode = "Normal",
+                leadBias = 0,
+                wallCheck = 0
+            },
+            "shootWallCheck",
+            "gunLeadBias"
+        }
+    },
+    Line = 657
+}
+Intercept code:
+-- This code was generated by Cobalt
+-- https://gitlab.com/upio/cobalt
+
+local function GetNil(Name, DebugId)
+	for _, Object in getnilinstances() do
+		if Object.Name == Name and Object:GetDebugId() == DebugId then
+			return Object
+		end
+	end
+end
+
+local Event = GetNil("Shoot", "1_2384153")
+local mtHook; mtHook = hookmetamethod(game, "__namecall", function(...)
+	local self = ...
+
+	if rawequal(self, Event) and getnamecallmethod() == "FireServer" then
+		local Args = table.pack(...)
+		
+		local Result = table.pack(
+			mtHook(self, table.unpack(Args, 1, Args.n))
+		)
+
+		print(`Intercepted (__namecall) {Event.Name}:FireServer()`, ...)
+
+		return table.unpack(Result, 1, Result.n)
+	end
+
+	return mtHook(...)
+end)
+
+local OldFireServer; OldFireServer = hookfunction(Event.FireServer, function(...)
+	local self = ...
+
+	if rawequal(self, Event) then
+		local Args = table.pack(...)
+
+		local Result = table.pack(
+			OldFireServer(table.unpack(Args, 1, Args.n))
+		)
+
+		print(`Intercepted (__index) {Event.Name}:FireServer()`, self, table.unpack(Result, 1, Result.n))
+
+		return table.unpack(Result, 1, Result.n)
+	end
+
+	return OldFireServer(self, ...)
+end)
+Replicate Toy.
+Calling code:
+-- This code was generated by Cobalt
+-- https://gitlab.com/upio/cobalt
+
+local Event = game:GetService("ReplicatedStorage").Remotes.Extras.ReplicateToy
+Event:InvokeServer(
+    "FakeBomb"
+)
+Intercept code:
+-- This code was generated by Cobalt
+-- https://gitlab.com/upio/cobalt
+
+local Event = game:GetService("ReplicatedStorage").Remotes.Extras.ReplicateToy
+local mtHook; mtHook = hookmetamethod(game, "__namecall", function(...)
+	local self = ...
+
+	if rawequal(self, Event) and getnamecallmethod() == "InvokeServer" then
+		local Args = table.pack(...)
+		
+		local Result = table.pack(
+			mtHook(self, table.unpack(Args, 1, Args.n))
+		)
+
+		print(`Intercepted (__namecall) {Event.Name}:InvokeServer()`, ...)
+
+		return table.unpack(Result, 1, Result.n)
+	end
+
+	return mtHook(...)
+end)
+
+local OldInvokeServer; OldInvokeServer = hookfunction(Event.InvokeServer, function(...)
+	local self = ...
+
+	if rawequal(self, Event) then
+		local Args = table.pack(...)
+
+		local Result = table.pack(
+			OldInvokeServer(table.unpack(Args, 1, Args.n))
+		)
+
+		print(`Intercepted (__index) {Event.Name}:InvokeServer()`, self, table.unpack(Result, 1, Result.n))
+
+		return table.unpack(Result, 1, Result.n)
+	end
+
+	return OldInvokeServer(self, ...)
+end)
+Function info 
+-- This code was generated by Cobalt
+-- https://gitlab.com/upio/cobalt
+
+local Event = game:GetService("ReplicatedStorage").Remotes.Extras.ReplicateToy
+local mtHook; mtHook = hookmetamethod(game, "__namecall", function(...)
+	local self = ...
+
+	if rawequal(self, Event) and getnamecallmethod() == "InvokeServer" then
+		local Args = table.pack(...)
+		
+		local Result = table.pack(
+			mtHook(self, table.unpack(Args, 1, Args.n))
+		)
+
+		print(`Intercepted (__namecall) {Event.Name}:InvokeServer()`, ...)
+
+		return table.unpack(Result, 1, Result.n)
+	end
+
+	return mtHook(...)
+end)
+
+local OldInvokeServer; OldInvokeServer = hookfunction(Event.InvokeServer, function(...)
+	local self = ...
+
+	if rawequal(self, Event) then
+		local Args = table.pack(...)
+
+		local Result = table.pack(
+			OldInvokeServer(table.unpack(Args, 1, Args.n))
+		)
+
+		print(`Intercepted (__index) {Event.Name}:InvokeServer()`, self, table.unpack(Result, 1, Result.n))
+
+		return table.unpack(Result, 1, Result.n)
+	end
+
+	return OldInvokeServer(self, ...)
+end)
+local Event = game:GetService("ReplicatedStorage").Remotes.Extras.ReplicateToy
+FakeBomb remote
+-- This code was generated by Cobalt
+-- https://gitlab.com/upio/cobalt
+
+local Event = [game:GetService("Players").LocalPlayer.Name].FakeBomb.Remote
+Event:FireServer(
+    CFrame.new(-81.545135498046875, 204.98405456542969, 9179.669921875, -0.99987119436264038, 0.0031561173964291811, -0.015737554058432579, 2.3283064365386963e-10, 0.98047745227813721, 0.19663168489933014, 0.016050908714532852, 0.1966063529253006, -0.98035115003585815),
+    50
+)
+Traphitlocal
+code: 
+-- This code was generated by Cobalt
+-- https://gitlab.com/upio/cobalt
+
+local function GetNil(Name, DebugId)
+	for _, Object in getnilinstances() do
+		if Object.Name == Name and Object:GetDebugId() == DebugId then
+			return Object
+		end
+	end
+end
+
+local Event = game:GetService("ReplicatedStorage").TrapSystem.TrapHitLocal
+firesignal(Event.OnClientEvent, 
+    GetNil("Trap", "1_2741190"),
+    game:GetService("Players").LocalPlayer
+)
+function info: 
+local Info = {
+    Function = {
+        Source = "Players.TheXxDeXx.PlayerScripts.TrapScriptClient",
+        Type = "Luau function",
+        Name = "",
+        Address = "function: 0x2702b96befe17336",
+        Protos = {},
+        Upvalues = {
+            game:GetService("ReplicatedStorage").TrapSystem
+        },
+        Arguments = {
+            .Trap --[[Nil Parent]],
+            game:GetService("Players").LocalPlayer
+        },
+        Constants = {
+            "Character",
+            "TrapVisual",
+            "CFrame",
+            "GetComponents",
+            "HumanoidRootPart",
+            "Position",
+            "X",
+            "Y",
+            "Z",
+            "new",
+            nil,
+            "unpack",
+            nil,
+            "Transparency",
+            "Humanoid",
+            0.01,
+            "WalkSpeed",
+            "JumpPower",
+            "script",
+            nil,
+            "TrapGUI",
+            "Clone",
+            "Enabled",
+            "game",
+            game,
+            "Players",
+            "LocalPlayer",
+            "PlayerGui",
+            "Parent",
+            "Main",
+            "Progress",
+            "Bar",
+            "TweenScript",
+            "Disabled",
+            "TrapReplicate",
+            "FireServer",
+            "task",
+            "wait"
+        }
+    },
+    Script = game:GetService("Players").LocalPlayer.PlayerScripts.TrapScriptClient
+}
+traphitvisual. calling code
+-- This code was generated by Cobalt
+-- https://gitlab.com/upio/cobalt
+
+local function GetNil(Name, DebugId)
+	for _, Object in getnilinstances() do
+		if Object.Name == Name and Object:GetDebugId() == DebugId then
+			return Object
+		end
+	end
+end
+
+local Event = game:GetService("ReplicatedStorage").TrapSystem.TrapHitVisual
+firesignal(Event.OnClientEvent, 
+    GetNil("Trap", "1_2730066"),
+    CFrame.new(-37.23028564453125, 288.769775390625, 9015.1142578125, -0.97749197483062744, 0.21097391843795776, 7.1302056312561035e-06, -7.1302056312561035e-06, -6.6995620727539062e-05, 1.0000001192092896, 0.21097391843795776, 0.97749185562133789, 6.6697597503662109e-05),
+    game:GetService("Players").LocalPlayer
+)
+function info: 
+local Info = {
+    Function = {
+        Source = "Players.TheXxDeXx.PlayerScripts.TrapScriptClient",
+        Type = "Luau function",
+        Name = "",
+        Address = "function: 0xe118aa567c20673f",
+        Protos = {},
+        Upvalues = {},
+        Arguments = {
+            .Trap --[[Nil Parent]],
+            CFrame.new(-37.23028564453125, 288.769775390625, 9015.1142578125, -0.97749197483062744, 0.21097391843795776, 7.1302056312561035e-06, -7.1302056312561035e-06, -6.6995620727539062e-05, 1.0000001192092896, 0.21097391843795776, 0.97749185562133789, 6.6697597503662109e-05),
+            game:GetService("Players").LocalPlayer
+        },
+        Constants = {
+            "TrapVisual",
+            "CFrame",
+            "Transparency",
+            "game",
+            game,
+            "Players",
+            "LocalPlayer",
+            "PlacedPlayer",
+            "Value",
+            "script",
+            nil,
+            "TrappedBillboard",
+            "Clone",
+            "Character",
+            "HumanoidRootPart",
+            "Parent",
+            "Enabled",
+            "Debris",
+            "AddItem"
+        }
+    },
+    Script = game:GetService("Players").LocalPlayer.PlayerScripts.TrapScriptClient
+}
