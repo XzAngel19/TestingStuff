@@ -1,0 +1,3330 @@
+do
+-- Angel Hub | Goalkeeper GUI for Illegal Soccer.
+-- Services.
+local playersService = game:GetService("Players")
+local userInputService = game:GetService("UserInputService")
+local httpService = game:GetService("HttpService")
+
+-- Constants.
+local WINDOW_WIDTH = 420
+local WINDOW_HEIGHT = 540
+local TITLE_HEIGHT = 34
+local TAB_HEIGHT = 30
+local MIN_WIDTH = 360
+local MIN_HEIGHT = 360
+local MAX_WIDTH = 820
+local MAX_HEIGHT = 800
+local CONFIG_FOLDER = "KaliHub"
+local CONFIG_FILE = "KaliHub/Illegal Soccer GK.json"
+local TAB_NAMES = { "Goalkeeper", "Extras", "Visuals", "Config" }
+local TITLE_TEXT = "Angel Hub | GK"
+
+local ACCENT_A = Color3.fromRGB(225, 225, 225)
+local ACCENT_B = Color3.fromRGB(110, 110, 116)
+local BACKGROUND_TOP = Color3.fromRGB(25, 25, 27)
+local BACKGROUND_BOTTOM = Color3.fromRGB(9, 9, 10)
+local ROW_COLOR = Color3.fromRGB(34, 34, 36)
+local ELEMENT_COLOR = Color3.fromRGB(17, 17, 19)
+local TEXT_COLOR = Color3.fromRGB(238, 238, 238)
+local OFF_TEXT_COLOR = Color3.fromRGB(192, 192, 196)
+local DIM_TEXT_COLOR = Color3.fromRGB(120, 120, 124)
+
+local TEXT_FONT = Enum.Font.SourceSans
+local BOLD_FONT = Enum.Font.SourceSansBold
+
+local FAST_TWEEN = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local SLIDE_TWEEN = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local MEDIUM_TWEEN = TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local POP_TWEEN = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+local localPlayer = playersService.LocalPlayer
+
+local KaliHub = {
+	values = {},
+	pages = {},
+	tabButtons = {},
+	tabIndex = {},
+	searchables = {},
+	sections = {},
+	boxes = {},
+	sectionBoxes = {},
+	setters = {},
+	connections = {},
+	keybinds = {},
+	keyLabels = {},
+	listening = nil,
+	defaults = {},
+	menuKey = Enum.KeyCode.RightShift,
+}
+
+---Create an instance with properties.
+local function create(className, properties, parent)
+	local instance = Instance.new(className)
+
+	for key, value in properties do
+		instance[key] = value
+	end
+
+	instance.Parent = parent
+	return instance
+end
+
+---Play a tween.
+local function tween(instance, info, goal)
+	local newTween = tweenService:Create(instance, info, goal)
+	newTween:Play()
+	return newTween
+end
+
+---Connect a global input signal that is cleaned up when the GUI closes.
+local function connectInput(signal, callback)
+	local connection = signal:Connect(callback)
+	table.insert(KaliHub.connections, connection)
+	return connection
+end
+
+---Check if an input is a primary press.
+local function isPress(input)
+	return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+end
+
+---Check if an input is pointer movement.
+local function isMove(input)
+	return input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch
+end
+
+---Add the accent gradient to an object.
+local function addGradient(parent, rotation)
+	return create("UIGradient", {
+		Color = ColorSequence.new(ACCENT_A, ACCENT_B),
+		Rotation = rotation,
+	}, parent)
+end
+
+---Add a border stroke to an object.
+local function addStroke(parent, color, transparency, thickness)
+	return create("UIStroke", {
+		Color = color,
+		Transparency = transparency,
+		Thickness = thickness or 1,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, parent)
+end
+
+---Create a rounded row card.
+local function createCard(className, parent, text, height)
+	local card = create(className, {
+		Name = text,
+		Size = UDim2.new(1, 0, 0, height),
+		BackgroundColor3 = ROW_COLOR,
+		BackgroundTransparency = 0.65,
+		BorderSizePixel = 0,
+	}, KaliHub.sectionBoxes[parent] or parent)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 5) }, card)
+	local stroke = addStroke(card, ACCENT_A, 1)
+	card.ClipsDescendants = true
+
+	-- Rows of a collapsible group start hidden and follow the group button.
+	local group = KaliHub.currentGroup
+	if group then
+		table.insert(group.cards, card)
+		card:SetAttribute("GroupHidden", group.collapsed)
+		card.Visible = not group.collapsed
+	end
+
+	-- Click ripple that expands from the cursor.
+	card.InputBegan:Connect(function(input)
+		if not isPress(input) then
+			return
+		end
+
+		local offset = Vector2.new(input.Position.X, input.Position.Y) - card.AbsolutePosition
+
+		local ripple = create("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(offset.X, offset.Y),
+			Size = UDim2.fromOffset(0, 0),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.8,
+			BorderSizePixel = 0,
+			ZIndex = 0,
+		}, card)
+
+		create("UICorner", { CornerRadius = UDim.new(1, 0) }, ripple)
+
+		local diameter = math.max(card.AbsoluteSize.X, card.AbsoluteSize.Y) * 2
+
+		tween(ripple, MEDIUM_TWEEN, {
+			Size = UDim2.fromOffset(diameter, diameter),
+			BackgroundTransparency = 1,
+		}).Completed:Connect(function()
+			ripple:Destroy()
+		end)
+	end)
+
+	card.MouseEnter:Connect(function()
+		tween(card, FAST_TWEEN, { BackgroundTransparency = 0.35 })
+		tween(stroke, FAST_TWEEN, { Transparency = 0.55 })
+	end)
+
+	card.MouseLeave:Connect(function()
+		tween(card, FAST_TWEEN, { BackgroundTransparency = 0.65 })
+		tween(stroke, FAST_TWEEN, { Transparency = 1 })
+	end)
+
+	return card, stroke
+end
+
+---Add a section group box. Following rows are placed inside it.
+local function addSection(parent, text)
+	local box = create("Frame", {
+		Name = text .. " Box",
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundColor3 = Color3.fromRGB(22, 22, 24),
+		BackgroundTransparency = 0.2,
+		BorderSizePixel = 0,
+		LayoutOrder = #KaliHub.boxes + 1,
+	}, parent)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }, box)
+	addStroke(box, Color3.fromRGB(105, 105, 110), 0.55)
+
+	create("UIGradient", {
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(165, 165, 170)),
+		Rotation = 90,
+	}, box)
+
+	create("UIPadding", {
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 6),
+		PaddingLeft = UDim.new(0, 6),
+		PaddingRight = UDim.new(0, 6),
+	}, box)
+
+	create("UIListLayout", { Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder }, box)
+
+	local holder = create("Frame", {
+		Name = text,
+		Size = UDim2.new(1, 0, 0, 26),
+		BackgroundTransparency = 1,
+	}, box)
+
+	local marker = create("Frame", {
+		Size = UDim2.fromOffset(3, 12),
+		Position = UDim2.new(0, 3, 0.5, -7),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, holder)
+
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }, marker)
+	addGradient(marker, 90)
+
+	tweenService:Create(
+		marker,
+		TweenInfo.new(1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ BackgroundTransparency = 0.5 }
+	):Play()
+
+	create("TextLabel", {
+		Size = UDim2.new(1, -14, 1, -4),
+		Position = UDim2.fromOffset(12, 0),
+		BackgroundTransparency = 1,
+		Text = string.upper(text),
+		TextColor3 = ACCENT_A,
+		TextSize = 11,
+		Font = BOLD_FONT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+
+	local line = create("Frame", {
+		Size = UDim2.new(1, 0, 0, 1),
+		Position = UDim2.new(0, 0, 1, -2),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, holder)
+
+	local gradient = addGradient(line, 0)
+	gradient.Transparency = NumberSequence.new(0.3, 1)
+
+	KaliHub.sectionBoxes[parent] = box
+	table.insert(KaliHub.boxes, box)
+	table.insert(KaliHub.sections, holder)
+end
+
+---Add a toggle row.
+local function addToggle(parent, text, keybind, default)
+	local holder, stroke = createCard("TextButton", parent, text, 28)
+	holder.Text = ""
+	holder.AutoButtonColor = false
+
+	local box = create("Frame", {
+		Size = UDim2.fromOffset(16, 16),
+		Position = UDim2.new(0, 8, 0.5, -8),
+		BackgroundColor3 = ELEMENT_COLOR,
+		BorderSizePixel = 0,
+	}, holder)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 4) }, box)
+	local boxStroke = addStroke(box, default and ACCENT_A or DIM_TEXT_COLOR, default and 0 or 0.5)
+
+	local check = create("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = default and UDim2.fromOffset(10, 10) or UDim2.fromOffset(0, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, box)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 3) }, check)
+	addGradient(check, 45)
+
+	local label = create("TextLabel", {
+		Size = UDim2.new(1, -40, 1, 0),
+		Position = UDim2.fromOffset(32, 0),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = default and TEXT_COLOR or OFF_TEXT_COLOR,
+		TextSize = 13,
+		Font = TEXT_FONT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+
+	-- Glowing marker on the left edge while enabled.
+	local accentBar = create("Frame", {
+		Size = UDim2.new(0, 3, 1, -10),
+		Position = UDim2.fromOffset(0, 5),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = default and 0 or 1,
+		BorderSizePixel = 0,
+	}, holder)
+
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }, accentBar)
+	addGradient(accentBar, 90)
+
+	local state = default
+	KaliHub.values[text] = state
+	KaliHub.defaults[text] = default
+
+	KaliHub.setters[text] = function(value)
+		state = value == true
+		KaliHub.values[text] = state
+
+		tween(check, POP_TWEEN, { Size = state and UDim2.fromOffset(10, 10) or UDim2.fromOffset(0, 0) })
+		tween(boxStroke, FAST_TWEEN, { Color = state and ACCENT_A or DIM_TEXT_COLOR, Transparency = state and 0 or 0.5 })
+		tween(label, FAST_TWEEN, { TextColor3 = state and TEXT_COLOR or OFF_TEXT_COLOR })
+		tween(accentBar, FAST_TWEEN, { BackgroundTransparency = state and 0 or 1 })
+	end
+
+	-- Clickable keybind label: click it, then press a key. Escape clears it.
+	if keybind then
+		local keybindName = text .. " Keybind"
+
+		local keybindButton = create("TextButton", {
+			Size = UDim2.fromOffset(52, 22),
+			Position = UDim2.new(1, -58, 0.5, -11),
+			BackgroundTransparency = 1,
+			Text = "[" .. keybind .. "]",
+			TextColor3 = DIM_TEXT_COLOR,
+			TextSize = 12,
+			Font = TEXT_FONT,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			AutoButtonColor = false,
+		}, holder)
+
+		---Apply a key name to this toggle.
+		local function applyKey(keyName)
+			local keyCode = nil
+
+			for _, item in Enum.KeyCode:GetEnumItems() do
+				if item.Name == keyName then
+					keyCode = item
+					break
+				end
+			end
+
+			KaliHub.keybinds[text] = keyCode
+			KaliHub.values[keybindName] = keyCode and keyName or ""
+			keybindButton.Text = keyCode and ("[" .. keyName .. "]") or "[None]"
+			keybindButton.Visible = KaliHub.values["Keybind Hints"] ~= false
+		end
+
+		KaliHub.defaults[keybindName] = keybind
+		KaliHub.setters[keybindName] = applyKey
+		KaliHub.keyLabels[text] = keybindButton
+		applyKey(keybind)
+
+		keybindButton.MouseEnter:Connect(function()
+			tween(keybindButton, FAST_TWEEN, { TextColor3 = ACCENT_A })
+		end)
+
+		keybindButton.MouseLeave:Connect(function()
+			if not KaliHub.listening then
+				tween(keybindButton, FAST_TWEEN, { TextColor3 = DIM_TEXT_COLOR })
+			end
+		end)
+
+		keybindButton.Activated:Connect(function()
+			-- Cancel any other keybind that is still waiting for a key.
+			if KaliHub.cancelListening then
+				KaliHub.cancelListening()
+			end
+
+			local previousKey = KaliHub.values[keybindName]
+			keybindButton.Text = "[...]"
+			tween(keybindButton, FAST_TWEEN, { TextColor3 = ACCENT_A })
+
+			KaliHub.cancelListening = function()
+				KaliHub.listening = nil
+				KaliHub.cancelListening = nil
+				tween(keybindButton, FAST_TWEEN, { TextColor3 = DIM_TEXT_COLOR })
+				applyKey(previousKey)
+			end
+
+			KaliHub.listening = function(keyCode)
+				KaliHub.listening = nil
+				KaliHub.cancelListening = nil
+				tween(keybindButton, FAST_TWEEN, { TextColor3 = DIM_TEXT_COLOR })
+				applyKey(keyCode == Enum.KeyCode.Escape and "" or keyCode.Name)
+			end
+		end)
+	end
+
+	holder.MouseButton1Down:Connect(function()
+		tween(holder, FAST_TWEEN, { BackgroundTransparency = 0 })
+		tween(stroke, FAST_TWEEN, { Transparency = 0 })
+	end)
+
+	holder.MouseButton1Up:Connect(function()
+		tween(holder, FAST_TWEEN, { BackgroundTransparency = 0.35 })
+		tween(stroke, FAST_TWEEN, { Transparency = 0.55 })
+	end)
+
+	holder.Activated:Connect(function()
+		KaliHub.setters[text](not state)
+
+		if KaliHub.notify then
+			KaliHub.notify(text, state)
+		end
+	end)
+
+	holder.MouseEnter:Connect(function()
+		tween(label, FAST_TWEEN, { Position = UDim2.fromOffset(36, 0) })
+	end)
+
+	holder.MouseLeave:Connect(function()
+		tween(label, FAST_TWEEN, { Position = UDim2.fromOffset(32, 0) })
+	end)
+
+	table.insert(KaliHub.searchables, holder)
+end
+
+---Add a slider row.
+local function addSlider(parent, text, minValue, maxValue, default, decimals)
+	local holder = createCard("Frame", parent, text, 44)
+	local startAlpha = (default - minValue) / (maxValue - minValue)
+
+	create("TextLabel", {
+		Size = UDim2.new(1, -70, 0, 20),
+		Position = UDim2.fromOffset(10, 3),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = TEXT_COLOR,
+		TextSize = 13,
+		Font = TEXT_FONT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+
+	local valueLabel = create("TextLabel", {
+		Size = UDim2.fromOffset(56, 20),
+		Position = UDim2.new(1, -66, 0, 3),
+		BackgroundTransparency = 1,
+		Text = tostring(default),
+		TextColor3 = OFF_TEXT_COLOR,
+		TextSize = 13,
+		Font = BOLD_FONT,
+		TextXAlignment = Enum.TextXAlignment.Right,
+	}, holder)
+
+	local bar = create("Frame", {
+		Size = UDim2.new(1, -20, 0, 6),
+		Position = UDim2.fromOffset(10, 29),
+		BackgroundColor3 = ELEMENT_COLOR,
+		BorderSizePixel = 0,
+	}, holder)
+
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }, bar)
+	addStroke(bar, Color3.new(1, 1, 1), 0.88)
+
+	local fill = create("Frame", {
+		Size = UDim2.fromScale(startAlpha, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, bar)
+
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }, fill)
+	addGradient(fill, 0)
+
+	local knob = create("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.fromOffset(12, 12),
+		Position = UDim2.new(startAlpha, 0, 0.5, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, bar)
+
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }, knob)
+	addStroke(knob, ACCENT_A, 0, 2)
+	local knobScale = create("UIScale", {}, knob)
+
+	local hitbox = create("Frame", {
+		Size = UDim2.new(1, -20, 0, 22),
+		Position = UDim2.fromOffset(10, 21),
+		BackgroundTransparency = 1,
+	}, holder)
+
+	KaliHub.values[text] = default
+	KaliHub.defaults[text] = default
+
+	local dragging = false
+
+	local function setValue(value)
+		local factor = 10 ^ decimals
+		value = math.floor(math.clamp(value, minValue, maxValue) * factor + 0.5) / factor
+		local snapped = (value - minValue) / (maxValue - minValue)
+
+		tween(fill, SLIDE_TWEEN, { Size = UDim2.fromScale(snapped, 1) })
+		tween(knob, SLIDE_TWEEN, { Position = UDim2.new(snapped, 0, 0.5, 0) })
+
+		valueLabel.Text = tostring(value)
+		KaliHub.values[text] = value
+	end
+
+	KaliHub.setters[text] = setValue
+
+	local function updateFromX(positionX)
+		local alpha = math.clamp((positionX - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+		setValue(minValue + (maxValue - minValue) * alpha)
+	end
+
+	hitbox.InputBegan:Connect(function(input)
+		if not isPress(input) then
+			return
+		end
+
+		dragging = true
+		tween(knobScale, POP_TWEEN, { Scale = 1.35 })
+		tween(valueLabel, FAST_TWEEN, { TextColor3 = ACCENT_A })
+		updateFromX(input.Position.X)
+	end)
+
+	connectInput(userInputService.InputChanged, function(input)
+		if dragging and isMove(input) then
+			updateFromX(input.Position.X)
+		end
+	end)
+
+	connectInput(userInputService.InputEnded, function(input)
+		if not dragging or not isPress(input) then
+			return
+		end
+
+		dragging = false
+		tween(knobScale, POP_TWEEN, { Scale = 1 })
+		tween(valueLabel, FAST_TWEEN, { TextColor3 = OFF_TEXT_COLOR })
+	end)
+
+	table.insert(KaliHub.searchables, holder)
+end
+
+---Add a cycling option row.
+local function addCycle(parent, text, options)
+	local holder = createCard("Frame", parent, text, 56)
+
+	create("TextLabel", {
+		Size = UDim2.new(1, -20, 0, 20),
+		Position = UDim2.fromOffset(10, 3),
+		BackgroundTransparency = 1,
+		Text = text,
+		TextColor3 = TEXT_COLOR,
+		TextSize = 13,
+		Font = TEXT_FONT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, holder)
+
+	local button = create("TextButton", {
+		Size = UDim2.new(1, -20, 0, 24),
+		Position = UDim2.fromOffset(10, 26),
+		BackgroundColor3 = ELEMENT_COLOR,
+		BorderSizePixel = 0,
+		Text = options[1],
+		TextColor3 = TEXT_COLOR,
+		TextSize = 13,
+		Font = TEXT_FONT,
+		AutoButtonColor = false,
+	}, holder)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 4) }, button)
+	local buttonStroke = addStroke(button, DIM_TEXT_COLOR, 0.6)
+
+	local index = 1
+	KaliHub.values[text] = options[1]
+	KaliHub.defaults[text] = options[1]
+
+	KaliHub.setters[text] = function(value)
+		local found = table.find(options, value)
+		if not found then
+			return
+		end
+
+		index = found
+		KaliHub.values[text] = options[index]
+		button.Text = options[index]
+	end
+
+	button.MouseEnter:Connect(function()
+		tween(buttonStroke, FAST_TWEEN, { Color = ACCENT_A, Transparency = 0 })
+	end)
+
+	button.MouseLeave:Connect(function()
+		tween(buttonStroke, FAST_TWEEN, { Color = DIM_TEXT_COLOR, Transparency = 0.6 })
+	end)
+
+	button.Activated:Connect(function()
+		index = index % #options + 1
+		KaliHub.values[text] = options[index]
+
+		button.Text = options[index]
+		button.TextTransparency = 1
+		tween(button, FAST_TWEEN, { TextTransparency = 0 })
+	end)
+
+	table.insert(KaliHub.searchables, holder)
+end
+
+---Add an action button row.
+local function addButton(parent, text, callback)
+	local holder = createCard("Frame", parent, text, 34)
+
+	local button = create("TextButton", {
+		Size = UDim2.new(1, -16, 0, 24),
+		Position = UDim2.fromOffset(8, 5),
+		BackgroundColor3 = ELEMENT_COLOR,
+		BorderSizePixel = 0,
+		Text = text,
+		TextColor3 = TEXT_COLOR,
+		TextSize = 13,
+		Font = TEXT_FONT,
+		AutoButtonColor = false,
+	}, holder)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 4) }, button)
+	local buttonStroke = addStroke(button, DIM_TEXT_COLOR, 0.6)
+
+	button.MouseEnter:Connect(function()
+		tween(buttonStroke, FAST_TWEEN, { Color = ACCENT_A, Transparency = 0 })
+		tween(button, FAST_TWEEN, { BackgroundColor3 = Color3.fromRGB(28, 28, 30) })
+	end)
+
+	button.MouseLeave:Connect(function()
+		tween(buttonStroke, FAST_TWEEN, { Color = DIM_TEXT_COLOR, Transparency = 0.6 })
+		tween(button, FAST_TWEEN, { BackgroundColor3 = ELEMENT_COLOR })
+	end)
+
+	button.MouseButton1Down:Connect(function()
+		tween(button, FAST_TWEEN, { BackgroundColor3 = Color3.fromRGB(46, 46, 48) })
+	end)
+
+	button.MouseButton1Up:Connect(function()
+		tween(button, FAST_TWEEN, { BackgroundColor3 = Color3.fromRGB(28, 28, 30) })
+	end)
+
+	button.Activated:Connect(callback)
+	table.insert(KaliHub.searchables, holder)
+end
+
+---Start a group of rows that a button shows or hides. The rows that follow belong to the group.
+local function beginGroup(parent, text)
+	local group = { cards = {}, collapsed = true }
+	local holder = createCard("Frame", parent, text .. " Options", 30)
+
+	local button = create("TextButton", {
+		Size = UDim2.new(1, -16, 0, 22),
+		Position = UDim2.fromOffset(8, 4),
+		BackgroundColor3 = ELEMENT_COLOR,
+		BorderSizePixel = 0,
+		Text = "+  Show options",
+		TextColor3 = OFF_TEXT_COLOR,
+		TextSize = 12,
+		Font = TEXT_FONT,
+		AutoButtonColor = false,
+	}, holder)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 4) }, button)
+	local buttonStroke = addStroke(button, DIM_TEXT_COLOR, 0.6)
+
+	button.MouseEnter:Connect(function()
+		tween(buttonStroke, FAST_TWEEN, { Color = ACCENT_A, Transparency = 0 })
+	end)
+
+	button.MouseLeave:Connect(function()
+		tween(buttonStroke, FAST_TWEEN, { Color = DIM_TEXT_COLOR, Transparency = 0.6 })
+	end)
+
+	button.Activated:Connect(function()
+		group.collapsed = not group.collapsed
+		button.Text = group.collapsed and "+  Show options" or "-  Hide options"
+
+		for _, card in group.cards do
+			card:SetAttribute("GroupHidden", group.collapsed)
+			card.Visible = not group.collapsed
+		end
+	end)
+
+	table.insert(KaliHub.searchables, holder)
+	KaliHub.currentGroup = group
+end
+
+---End the current group of rows.
+local function endGroup()
+	KaliHub.currentGroup = nil
+end
+
+---Create a scrolling column.
+local function createColumn(parent, position)
+	local column = create("ScrollingFrame", {
+		Size = UDim2.new(0.5, -6, 1, 0),
+		Position = position,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 3,
+		ScrollBarImageColor3 = ACCENT_A,
+		ScrollBarImageTransparency = 0.4,
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	}, parent)
+
+	create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, column)
+	create("UIPadding", { PaddingRight = UDim.new(0, 6) }, column)
+
+	return column
+end
+
+---Make a frame draggable by a handle.
+local function makeDraggable(handle, target)
+	local dragStart, startPosition
+
+	handle.InputBegan:Connect(function(input)
+		if not isPress(input) then
+			return
+		end
+
+		dragStart = input.Position
+		startPosition = target.Position
+	end)
+
+	connectInput(userInputService.InputChanged, function(input)
+		if not dragStart or not isMove(input) then
+			return
+		end
+
+		local delta = input.Position - dragStart
+
+		target.Position = UDim2.new(
+			startPosition.X.Scale,
+			startPosition.X.Offset + delta.X,
+			startPosition.Y.Scale,
+			startPosition.Y.Offset + delta.Y
+		)
+	end)
+
+	connectInput(userInputService.InputEnded, function(input)
+		if isPress(input) then
+			dragStart = nil
+		end
+	end)
+end
+
+---Create a title bar button with hover and press effects.
+local function createTitleButton(parent, text, offset, hoverColor)
+	local button = create("TextButton", {
+		Size = UDim2.fromOffset(24, 22),
+		Position = UDim2.new(1, offset, 0.5, -11),
+		BackgroundColor3 = ELEMENT_COLOR,
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+		Text = text,
+		TextColor3 = TEXT_COLOR,
+		TextSize = 13,
+		Font = BOLD_FONT,
+		AutoButtonColor = false,
+	}, parent)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 5) }, button)
+
+	button.MouseEnter:Connect(function()
+		tween(button, FAST_TWEEN, { BackgroundColor3 = hoverColor, BackgroundTransparency = 0.1 })
+	end)
+
+	button.MouseLeave:Connect(function()
+		tween(button, FAST_TWEEN, { BackgroundColor3 = ELEMENT_COLOR, BackgroundTransparency = 0.4 })
+	end)
+
+	button.MouseButton1Down:Connect(function()
+		tween(button, FAST_TWEEN, { BackgroundTransparency = 0.4 })
+	end)
+
+	return button
+end
+
+---Switch the visible tab.
+local function switchTab(name)
+	for pageName, page in KaliHub.pages do
+		local selected = pageName == name
+
+		page.Visible = selected
+		tween(KaliHub.tabButtons[pageName], FAST_TWEEN, { TextColor3 = selected and TEXT_COLOR or DIM_TEXT_COLOR })
+
+		if selected then
+			page.GroupTransparency = 1
+			tween(page, MEDIUM_TWEEN, { GroupTransparency = 0 })
+		end
+	end
+
+	KaliHub.selected = name
+	tween(KaliHub.indicator, MEDIUM_TWEEN, { Position = UDim2.new((KaliHub.tabIndex[name] - 1) / #TAB_NAMES, 6, 0, 3) })
+end
+
+---Build the whole interface.
+local function initializeScript()
+	-- Remove a previous copy of the GUI when the script runs again.
+	if typeof(shared) == "table" and shared.KaliHubGui then
+		pcall(function()
+			shared.KaliHubGui:Destroy()
+		end)
+	end
+
+	-- Prefer the hidden GUI container when the executor provides one.
+	local guiParent = localPlayer:WaitForChild("PlayerGui")
+
+	if typeof(gethui) == "function" then
+		local success, hiddenParent = pcall(gethui)
+
+		if success and hiddenParent then
+			guiParent = hiddenParent
+		end
+	end
+
+	local screenGui = create("ScreenGui", {
+		Name = "KaliHub",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+	}, guiParent)
+
+	if typeof(shared) == "table" then
+		shared.KaliHubGui = screenGui
+		shared.KaliHub = KaliHub
+	end
+
+	-- Stop every global listener when the GUI is destroyed.
+	screenGui.Destroying:Connect(function()
+		for _, connection in KaliHub.connections do
+			connection:Disconnect()
+		end
+
+		table.clear(KaliHub.connections)
+	end)
+
+	-- Stacked notifications in the bottom right corner.
+	local toastHolder = create("Frame", {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -16, 1, -16),
+		Size = UDim2.fromOffset(230, 320),
+		BackgroundTransparency = 1,
+		ZIndex = 20,
+	}, screenGui)
+
+	create("UIListLayout", {
+		Padding = UDim.new(0, 6),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		HorizontalAlignment = Enum.HorizontalAlignment.Right,
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+	}, toastHolder)
+
+	---Show a toast for a toggled feature.
+	KaliHub.notify = function(name, enabled)
+		if not toastHolder.Parent then
+			return
+		end
+
+		local toast = create("CanvasGroup", {
+			Size = UDim2.fromOffset(230, 34),
+			BackgroundColor3 = Color3.fromRGB(18, 18, 20),
+			BorderSizePixel = 0,
+			GroupTransparency = 1,
+		}, toastHolder)
+
+		create("UICorner", { CornerRadius = UDim.new(0, 7) }, toast)
+		addStroke(toast, Color3.new(1, 1, 1), 0.8)
+
+		create("Frame", {
+			Size = UDim2.new(0, 3, 1, -12),
+			Position = UDim2.fromOffset(6, 6),
+			BackgroundColor3 = enabled and Color3.fromRGB(120, 220, 140) or Color3.fromRGB(230, 100, 100),
+			BorderSizePixel = 0,
+		}, toast)
+
+		create("TextLabel", {
+			Size = UDim2.new(1, -80, 1, 0),
+			Position = UDim2.fromOffset(18, 0),
+			BackgroundTransparency = 1,
+			Text = name,
+			TextColor3 = TEXT_COLOR,
+			TextSize = 13,
+			Font = TEXT_FONT,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}, toast)
+
+		create("TextLabel", {
+			Size = UDim2.fromOffset(46, 34),
+			Position = UDim2.new(1, -54, 0, 0),
+			BackgroundTransparency = 1,
+			Text = enabled and "ON" or "OFF",
+			TextColor3 = enabled and Color3.fromRGB(120, 220, 140) or Color3.fromRGB(230, 100, 100),
+			TextSize = 12,
+			Font = BOLD_FONT,
+			TextXAlignment = Enum.TextXAlignment.Right,
+		}, toast)
+
+		tween(toast, FAST_TWEEN, { GroupTransparency = 0 })
+
+		task.delay(2, function()
+			tween(toast, MEDIUM_TWEEN, { GroupTransparency = 1 }).Completed:Wait()
+			toast:Destroy()
+		end)
+	end
+
+	local window = create("Frame", {
+		Size = UDim2.fromOffset(WINDOW_WIDTH, WINDOW_HEIGHT),
+		Position = UDim2.new(0.5, -WINDOW_WIDTH / 2, 0.5, -WINDOW_HEIGHT / 2),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+	}, screenGui)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 8) }, window)
+
+	create("UIGradient", {
+		Color = ColorSequence.new(BACKGROUND_TOP, BACKGROUND_BOTTOM),
+		Rotation = 90,
+	}, window)
+
+	local windowStroke = addStroke(window, Color3.new(1, 1, 1), 0.2, 1.5)
+	addGradient(windowStroke, 45)
+
+	local windowScale = create("UIScale", { Scale = 0.85 }, window)
+	tween(windowScale, POP_TWEEN, { Scale = 1 })
+
+	-- Top sheen for depth.
+	local sheen = create("Frame", {
+		Size = UDim2.new(1, 0, 0, 140),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, window)
+
+	create("UIGradient", {
+		Transparency = NumberSequence.new(0.965, 1),
+		Rotation = 90,
+	}, sheen)
+
+	local titleBar = create("Frame", {
+		Size = UDim2.new(1, 0, 0, TITLE_HEIGHT),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, window)
+
+	local titleGradient = addGradient(titleBar, 0)
+	titleGradient.Transparency = NumberSequence.new(0.8, 0.92)
+
+	local titleLine = create("Frame", {
+		Size = UDim2.new(1, 0, 0, 1),
+		Position = UDim2.new(0, 0, 1, -1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, titleBar)
+
+	addGradient(titleLine, 0)
+
+	create("TextLabel", {
+		Size = UDim2.new(1, -260, 1, 0),
+		Position = UDim2.fromOffset(12, 0),
+		BackgroundTransparency = 1,
+		RichText = true,
+		Text = "<b>" .. TITLE_TEXT .. "</b>",
+		TextColor3 = TEXT_COLOR,
+		TextSize = 14,
+		Font = BOLD_FONT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	}, titleBar)
+
+	local searchBox = create("TextBox", {
+		Size = UDim2.fromOffset(130, 22),
+		Position = UDim2.new(1, -200, 0.5, -11),
+		BackgroundColor3 = ELEMENT_COLOR,
+		BackgroundTransparency = 0.2,
+		BorderSizePixel = 0,
+		PlaceholderText = "Search",
+		PlaceholderColor3 = DIM_TEXT_COLOR,
+		Text = "",
+		TextColor3 = TEXT_COLOR,
+		TextSize = 12,
+		Font = TEXT_FONT,
+		ClearTextOnFocus = false,
+	}, titleBar)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 5) }, searchBox)
+	local searchStroke = addStroke(searchBox, ACCENT_A, 1)
+
+	searchBox.Focused:Connect(function()
+		tween(searchStroke, FAST_TWEEN, { Transparency = 0 })
+	end)
+
+	searchBox.FocusLost:Connect(function()
+		tween(searchStroke, FAST_TWEEN, { Transparency = 1 })
+	end)
+
+	local minimizeButton = createTitleButton(titleBar, "-", -60, ACCENT_B)
+	local closeButton = createTitleButton(titleBar, "X", -32, Color3.fromRGB(230, 60, 70))
+
+	makeDraggable(titleBar, window)
+
+	local minimized = false
+	local windowWidth = WINDOW_WIDTH
+	local windowHeight = WINDOW_HEIGHT
+
+	minimizeButton.Activated:Connect(function()
+		minimized = not minimized
+		KaliHub.resizeHandle.Visible = not minimized
+		tween(window, MEDIUM_TWEEN, { Size = UDim2.fromOffset(windowWidth, minimized and TITLE_HEIGHT or windowHeight) })
+	end)
+
+	closeButton.Activated:Connect(function()
+		tween(windowScale, FAST_TWEEN, { Scale = 0 }).Completed:Connect(function()
+			screenGui:Destroy()
+		end)
+	end)
+
+	-- Tab bar with an animated indicator.
+	local tabBar = create("Frame", {
+		Size = UDim2.new(1, 0, 0, TAB_HEIGHT),
+		Position = UDim2.fromOffset(0, TITLE_HEIGHT),
+		BackgroundTransparency = 1,
+	}, window)
+
+	local indicator = create("Frame", {
+		Size = UDim2.new(1 / #TAB_NAMES, -12, 1, -6),
+		Position = UDim2.new(0, 6, 0, 3),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.9,
+		BorderSizePixel = 0,
+	}, tabBar)
+
+	create("UICorner", { CornerRadius = UDim.new(0, 6) }, indicator)
+	addStroke(indicator, Color3.new(1, 1, 1), 0.8)
+
+	local underline = create("Frame", {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Size = UDim2.new(0.5, 0, 0, 2),
+		Position = UDim2.fromScale(0.5, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+	}, indicator)
+
+	create("UICorner", { CornerRadius = UDim.new(1, 0) }, underline)
+	addGradient(underline, 0)
+	KaliHub.indicator = indicator
+
+	local contentTop = TITLE_HEIGHT + TAB_HEIGHT + 8
+
+	local content = create("Frame", {
+		Size = UDim2.new(1, -20, 1, -(contentTop + 10)),
+		Position = UDim2.fromOffset(10, contentTop),
+		BackgroundTransparency = 1,
+	}, window)
+
+	-- Resize grip in the bottom right corner.
+	local resizeHandle = create("TextButton", {
+		AnchorPoint = Vector2.new(1, 1),
+		Size = UDim2.fromOffset(18, 18),
+		Position = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		ZIndex = 10,
+	}, window)
+
+	KaliHub.resizeHandle = resizeHandle
+
+	for gripIndex = 1, 3 do
+		create("Frame", {
+			AnchorPoint = Vector2.new(1, 1),
+			Size = UDim2.fromOffset(gripIndex * 4, 1),
+			Position = UDim2.new(1, -3, 1, -3 - (3 - gripIndex) * 4 - 2),
+			BackgroundColor3 = DIM_TEXT_COLOR,
+			BorderSizePixel = 0,
+		}, resizeHandle)
+	end
+
+	local resizing = false
+	local resizeStart, startWidth, startHeight
+
+	resizeHandle.MouseEnter:Connect(function()
+		for _, grip in resizeHandle:GetChildren() do
+			tween(grip, FAST_TWEEN, { BackgroundColor3 = ACCENT_A })
+		end
+	end)
+
+	resizeHandle.MouseLeave:Connect(function()
+		if resizing then
+			return
+		end
+
+		for _, grip in resizeHandle:GetChildren() do
+			tween(grip, FAST_TWEEN, { BackgroundColor3 = DIM_TEXT_COLOR })
+		end
+	end)
+
+	resizeHandle.InputBegan:Connect(function(input)
+		if not isPress(input) then
+			return
+		end
+
+		resizing = true
+		resizeStart = input.Position
+		startWidth, startHeight = windowWidth, windowHeight
+	end)
+
+	connectInput(userInputService.InputChanged, function(input)
+		if not resizing or not isMove(input) then
+			return
+		end
+
+		local delta = input.Position - resizeStart
+		windowWidth = math.clamp(startWidth + delta.X, MIN_WIDTH, MAX_WIDTH)
+		windowHeight = math.clamp(startHeight + delta.Y, MIN_HEIGHT, MAX_HEIGHT)
+		window.Size = UDim2.fromOffset(windowWidth, windowHeight)
+	end)
+
+	connectInput(userInputService.InputEnded, function(input)
+		if not resizing or not isPress(input) then
+			return
+		end
+
+		resizing = false
+
+		for _, grip in resizeHandle:GetChildren() do
+			tween(grip, FAST_TWEEN, { BackgroundColor3 = DIM_TEXT_COLOR })
+		end
+	end)
+
+	for index, name in TAB_NAMES do
+		local button = create("TextButton", {
+			Size = UDim2.fromScale(1 / #TAB_NAMES, 1),
+			Position = UDim2.fromScale((index - 1) / #TAB_NAMES, 0),
+			BackgroundTransparency = 1,
+			Text = name,
+			TextColor3 = DIM_TEXT_COLOR,
+			TextSize = 13,
+			Font = BOLD_FONT,
+			AutoButtonColor = false,
+		}, tabBar)
+
+		local page = create("CanvasGroup", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Visible = false,
+		}, content)
+
+		button.MouseEnter:Connect(function()
+			if KaliHub.selected ~= name then
+				tween(button, FAST_TWEEN, { TextColor3 = OFF_TEXT_COLOR })
+			end
+		end)
+
+		button.MouseLeave:Connect(function()
+			if KaliHub.selected ~= name then
+				tween(button, FAST_TWEEN, { TextColor3 = DIM_TEXT_COLOR })
+			end
+		end)
+
+		button.Activated:Connect(function()
+			switchTab(name)
+		end)
+
+		KaliHub.pages[name] = page
+		KaliHub.tabButtons[name] = button
+		KaliHub.tabIndex[name] = index
+	end
+
+	-- Goalkeeper tab.
+	local gkLeft = createColumn(KaliHub.pages.Goalkeeper, UDim2.fromOffset(0, 0))
+	local gkRight = createColumn(KaliHub.pages.Goalkeeper, UDim2.new(0.5, 6, 0, 0))
+
+	addSection(gkLeft, "Goalkeeper")
+	addToggle(gkLeft, "Auto Goalkeeper", nil, true)
+	addToggle(gkLeft, "GK Jump Saves", nil, true)
+	addToggle(gkLeft, "GK Air Dives", nil, true)
+	addCycle(gkLeft, "GK Dive Directions", { "Auto", "Left / Right", "Forward Only", "Jump Only" })
+	addToggle(gkLeft, "GK Friend Check", nil, true)
+
+	addSection(gkLeft, "Timing")
+	addSlider(gkLeft, "Dive Tolerance", 0, 10, 1, 0)
+	addSlider(gkLeft, "GK Detection Distance", 0, 300, 120, 0)
+	addSlider(gkLeft, "GK Wait Lookahead (ms)", 0, 300, 80, 0)
+	addSlider(gkLeft, "GK Input Lead (ms)", 0, 300, 0, 0)
+
+	addSection(gkRight, "Positioning")
+	addToggle(gkRight, "Auto GK Positioning", nil, true)
+	addToggle(gkRight, "GK Angle Cover", nil, true)
+	addToggle(gkRight, "GK Manual Override", nil, true)
+
+	addSection(gkRight, "Pressure")
+	addToggle(gkRight, "GK Dive Tackle", nil, true)
+	addToggle(gkRight, "GK Close Ball Dive", nil, true)
+
+	-- Extras tab.
+	local extrasLeft = createColumn(KaliHub.pages.Extras, UDim2.fromOffset(0, 0))
+	local extrasRight = createColumn(KaliHub.pages.Extras, UDim2.new(0.5, 6, 0, 0))
+
+	addSection(extrasLeft, "Auto Dribble")
+	addToggle(extrasLeft, "Auto Dribble", nil, true)
+	beginGroup(extrasLeft, "Auto Dribble")
+	addSlider(extrasLeft, "Dribble Range", 5, 45, 22, 0)
+	addSlider(extrasLeft, "Dribble Lead", 0.05, 1, 0.3, 2)
+	addToggle(extrasLeft, "Predict Impact", nil, true)
+	addToggle(extrasLeft, "Kick Check", nil, true)
+	addSlider(extrasLeft, "Dribble Kick Range", 3, 30, 18, 0)
+	addSlider(extrasLeft, "Dribble Kick Charge", 0, 100, 100, 0)
+	addToggle(extrasLeft, "Fake Check", nil, true)
+	addToggle(extrasLeft, "Animation Check", nil, true)
+	addSlider(extrasLeft, "Dribble Delay Min", 0, 1, 0, 2)
+	addSlider(extrasLeft, "Dribble Delay Max", 0, 1, 0.1, 2)
+	endGroup()
+
+	addSection(extrasLeft, "Auto Tackle")
+	addToggle(extrasLeft, "Auto Tackle", nil, true)
+	beginGroup(extrasLeft, "Auto Tackle")
+	addToggle(extrasLeft, "Tackle Players", nil, true)
+	addToggle(extrasLeft, "Tackle NPCs", nil, true)
+	addSlider(extrasLeft, "Tackle Range", 1, 28, 28, 0)
+	addSlider(extrasLeft, "Tackle Angle", 10, 270, 180, 0)
+	addSlider(extrasLeft, "Tackle Delay Min", 0, 2, 0, 2)
+	addSlider(extrasLeft, "Tackle Delay Max", 0, 2, 0.15, 2)
+	addToggle(extrasLeft, "Tackle Ball Check", nil, true)
+	addToggle(extrasLeft, "Tackle Dodge Check", nil, true)
+	addSlider(extrasLeft, "Tackle Safe Range", 1, 28, 12, 0)
+	addToggle(extrasLeft, "Tackle Face Target", nil, true)
+	endGroup()
+
+	addSection(extrasLeft, "Tackle Assist")
+	addToggle(extrasLeft, "Tackle Assist", nil, true)
+	beginGroup(extrasLeft, "Tackle Assist")
+	addToggle(extrasLeft, "Assist Players", nil, true)
+	addToggle(extrasLeft, "Assist NPCs", nil, true)
+	addSlider(extrasLeft, "Assist Range", 1, 28, 28, 0)
+	addSlider(extrasLeft, "Assist Angle", 10, 270, 180, 0)
+	addToggle(extrasLeft, "Assist Steer", nil, true)
+	addToggle(extrasLeft, "Assist Body Aim", nil, true)
+	addToggle(extrasLeft, "Assist Stop On Dribble", nil, true)
+	addToggle(extrasLeft, "Assist Ball Check", nil, true)
+	endGroup()
+
+	addSection(extrasRight, "Movement")
+	addToggle(extrasRight, "Infinite Stamina", nil, true)
+	addToggle(extrasRight, "Ball Magnet", nil, true)
+	addSlider(extrasRight, "Ball Magnet Range", 0, 25, 16, 0)
+
+	addSection(extrasRight, "Time")
+	addToggle(extrasRight, "Time Changer", nil, true)
+	-- The slider starts at the current time of the game, so nothing changes until it is moved.
+	addSlider(extrasRight, "Time Of Day", 0, 24, math.floor(math.clamp(game:GetService("Lighting").ClockTime, 0, 24) * 10 + 0.5) / 10, 1)
+
+	addSection(extrasRight, "Ranked")
+	addToggle(extrasRight, "Auto Rematch", nil, true)
+
+	-- Visuals tab.
+	local visualsLeft = createColumn(KaliHub.pages.Visuals, UDim2.fromOffset(0, 0))
+	local visualsRight = createColumn(KaliHub.pages.Visuals, UDim2.new(0.5, 6, 0, 0))
+
+	addSection(visualsLeft, "ESP")
+	addToggle(visualsLeft, "Goal ESP", nil, true)
+	addToggle(visualsLeft, "Ball ESP", nil, true)
+	addToggle(visualsLeft, "Player Chams", nil, false)
+	addSlider(visualsLeft, "ESP Max Distance", 50, 2000, 500, 0)
+
+	addSection(visualsRight, "Style")
+	addCycle(visualsRight, "ESP Color", { "White", "Red", "Green", "Blue", "Yellow" })
+	addSlider(visualsRight, "ESP Transparency", 0, 1, 0.3, 2)
+
+	-- Config tab.
+	local configLeft = createColumn(KaliHub.pages.Config, UDim2.fromOffset(0, 0))
+	local configRight = createColumn(KaliHub.pages.Config, UDim2.new(0.5, 6, 0, 0))
+
+	local statusLabel = create("TextLabel", {
+		Size = UDim2.new(1, -8, 0, 18),
+		Position = UDim2.new(0, 4, 1, -20),
+		BackgroundTransparency = 1,
+		Text = "",
+		TextColor3 = DIM_TEXT_COLOR,
+		TextSize = 12,
+		Font = TEXT_FONT,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 5,
+	}, KaliHub.pages.Config)
+
+	---Show a short status message.
+	local function setStatus(message)
+		statusLabel.Text = message
+		statusLabel.TextTransparency = 0
+
+		task.delay(3, function()
+			if statusLabel.Text == message then
+				tween(statusLabel, MEDIUM_TWEEN, { TextTransparency = 1 })
+			end
+		end)
+	end
+
+	---Save every setting to a file.
+	local function saveSettings()
+		if not writefile then
+			return setStatus("Saving is not supported here.")
+		end
+
+		local ok, result = pcall(function()
+			if makefolder and isfolder and not isfolder(CONFIG_FOLDER) then
+				makefolder(CONFIG_FOLDER)
+			end
+
+			writefile(CONFIG_FILE, httpService:JSONEncode(KaliHub.values))
+		end)
+
+		setStatus(ok and "Settings saved." or ("Save failed: " .. tostring(result)))
+	end
+
+	---Load every setting from the file.
+	local function loadSettings()
+		if not (readfile and isfile and isfile(CONFIG_FILE)) then
+			return setStatus("No saved settings found.")
+		end
+
+		local ok, data = pcall(function()
+			return httpService:JSONDecode(readfile(CONFIG_FILE))
+		end)
+
+		if not ok or typeof(data) ~= "table" then
+			return setStatus("Settings file is corrupted.")
+		end
+
+		for name, value in data do
+			local setter = KaliHub.setters[name]
+
+			if setter then
+				pcall(setter, value)
+			end
+		end
+
+		setStatus("Settings loaded.")
+	end
+
+	---Reset every setting to its default.
+	local function resetSettings()
+		for name, value in KaliHub.defaults do
+			KaliHub.setters[name](value)
+		end
+
+		setStatus("Settings reset.")
+	end
+
+	addSection(configLeft, "Settings")
+	addButton(configLeft, "Save Settings", saveSettings)
+	addButton(configLeft, "Load Settings", loadSettings)
+	addButton(configLeft, "Reset Settings", resetSettings)
+	addButton(configLeft, "Copy Settings", function()
+		if not setclipboard then
+			return setStatus("Clipboard is not supported here.")
+		end
+
+		setclipboard(httpService:JSONEncode(KaliHub.values))
+		setStatus("Settings copied.")
+	end)
+	addToggle(configLeft, "Auto Save", nil, false)
+
+	addSection(configRight, "Interface")
+	addCycle(configRight, "Menu Keybind", { "RightShift", "Insert", "RightControl", "Delete", "End" })
+	addButton(configRight, "Reset Window", function()
+		windowWidth, windowHeight = WINDOW_WIDTH, WINDOW_HEIGHT
+		minimized = false
+		KaliHub.resizeHandle.Visible = true
+
+		tween(window, MEDIUM_TWEEN, {
+			Size = UDim2.fromOffset(windowWidth, windowHeight),
+			Position = UDim2.new(0.5, -windowWidth / 2, 0.5, -windowHeight / 2),
+		})
+	end)
+	addButton(configRight, "Unload GUI", function()
+		tween(windowScale, FAST_TWEEN, { Scale = 0 }).Completed:Connect(function()
+			screenGui:Destroy()
+		end)
+	end)
+
+	-- Apply the menu keybind and autosave when enabled.
+	task.spawn(function()
+		while screenGui.Parent do
+			local keyName = KaliHub.values["Menu Keybind"]
+			KaliHub.menuKey = Enum.KeyCode.RightShift
+
+			for _, item in Enum.KeyCode:GetEnumItems() do
+				if item.Name == keyName then
+					KaliHub.menuKey = item
+					break
+				end
+			end
+
+			if KaliHub.values["Auto Save"] and writefile then
+				pcall(function()
+					if makefolder and isfolder and not isfolder(CONFIG_FOLDER) then
+						makefolder(CONFIG_FOLDER)
+					end
+
+					writefile(CONFIG_FILE, httpService:JSONEncode(KaliHub.values))
+				end)
+			end
+
+			task.wait(5)
+		end
+	end)
+
+	searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+		local query = string.lower(searchBox.Text)
+
+		for _, element in KaliHub.searchables do
+			element.Visible = (query == "" or string.find(string.lower(element.Name), query, 1, true) ~= nil) and not element:GetAttribute("GroupHidden")
+		end
+
+		for _, section in KaliHub.sections do
+			section.Visible = query == ""
+		end
+
+		for _, box in KaliHub.boxes do
+			local anyVisible = query == ""
+
+			for _, child in box:GetChildren() do
+				if child:IsA("GuiObject") and child.Visible and not table.find(KaliHub.sections, child) then
+					anyVisible = true
+					break
+				end
+			end
+
+			box.Visible = anyVisible
+		end
+	end)
+
+	-- The menu keybind hides and shows the menu.
+	connectInput(userInputService.InputBegan, function(input, gameProcessed)
+		if input.UserInputType ~= Enum.UserInputType.Keyboard then
+			return
+		end
+
+		-- A keybind button is waiting for the next key.
+		if KaliHub.listening then
+			return KaliHub.listening(input.KeyCode)
+		end
+
+		if gameProcessed then
+			return
+		end
+
+		if input.KeyCode == KaliHub.menuKey then
+			screenGui.Enabled = not screenGui.Enabled
+			return
+		end
+
+		-- Toggle any feature bound to this key.
+		for featureName, keyCode in KaliHub.keybinds do
+			if keyCode == input.KeyCode then
+				KaliHub.setters[featureName](not KaliHub.values[featureName])
+				KaliHub.notify(featureName, KaliHub.values[featureName])
+			end
+		end
+	end)
+
+	-- Keybind Hints shows or hides the keybind labels.
+	task.spawn(function()
+		while screenGui.Parent do
+			local visible = KaliHub.values["Keybind Hints"] ~= false
+
+			for _, keybindButton in KaliHub.keyLabels do
+				keybindButton.Visible = visible
+			end
+
+			task.wait(0.5)
+		end
+	end)
+
+	switchTab("Goalkeeper")
+end
+
+---Called when initialization errors.
+local function onInitializeError(error)
+	warn("Failed to initialize.")
+	warn(error)
+	warn(debug.traceback())
+end
+
+xpcall(initializeScript, onInitializeError)
+end
+
+do
+-- Angel Hub | Goalkeeper features for Illegal Soccer (optimized, runs after the GUI above).
+-- Check for table that is shared between executions.
+if not (shared and shared.KaliHub) then
+	return warn("The GUI did not start.")
+end
+
+-- Services.
+local playersService = game:GetService("Players")
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
+local lightingService = game:GetService("Lighting")
+local tweenService = game:GetService("TweenService")
+
+-- Constants.
+local KEY_SPACE = 0x20
+local DIVE_REPEAT_SECONDS = 1.9
+local MIN_SHOT_SPEED = 20
+local DIVE_MIN_LEAD = 0.3
+local DIVE_MAX_LEAD = 0.85
+local DIVE_SAFETY_SECONDS = 0.1
+local DIVE_CONTACT_REACH = 5
+local DIVE_MAX_YAW = math.rad(12)
+local POSITION_MIN_DEPTH = 7
+local POSITION_MAX_DEPTH = 11
+local POSITION_HOME_DEPTH = 9
+local POSITION_SHIFT = 0.15
+local POSITION_SHIFT_COVER = 0.22
+local POSITION_SHIFT_LIMIT = 0.25
+local HEAD_ON_SIDE = 3
+local HEAD_ON_MIN_HEIGHT = 0.8
+local JUMP_LEAN_SECONDS = 0.45
+local DIVE_SPEED = 38
+local GK_DIVE_REACH = 18
+local GK_TACKLE_MARGIN = 6
+local CLOSE_BALL_MIN = 2.5
+local CLOSE_BALL_MAX = 5
+local URGENCY_FAR = 60
+local URGENCY_NEAR = 12
+local URGENCY_EXTRA_LEAD = 0.18
+local ZONE_REACT_MARGIN = 6
+local SLIDE_ANIMATION = "rbxassetid://96680308558981"
+local KICK_ANIMATIONS = { ["rbxassetid://102546600977181"] = true, ["rbxassetid://71638837796273"] = true }
+local JUMP_MIN_HEIGHT = 1.8
+local JUMP_MAX_HEIGHT = 9
+local JUMP_MAX_SIDE = 6
+local JUMP_LEAD_SECONDS = 0.28
+local JUMP_REPEAT_SECONDS = 0.8
+local DIVE_RECOVERY_SECONDS = 1.0
+local SLOW_TICK_SECONDS = 0.2
+local VISUAL_TICK_SECONDS = 0.5
+local ESP_COLORS = {
+	White = Color3.fromRGB(255, 255, 255),
+	Red = Color3.fromRGB(255, 70, 70),
+	Green = Color3.fromRGB(80, 235, 120),
+	Blue = Color3.fromRGB(70, 130, 255),
+	Yellow = Color3.fromRGB(255, 225, 60),
+}
+local DIRECTION_NAMES = { "F", "RF", "R", "RB", "B", "LB", "L", "LF" }
+
+-- State.
+local KaliHub = shared.KaliHub
+local values = KaliHub.values
+local localPlayer = playersService.LocalPlayer
+local Features = {
+	connections = {},
+	drawings = {},
+	adornments = {},
+	cooldowns = {},
+	modules = {},
+	moduleFailures = {},
+	restores = {},
+	goals = {},
+	meshes = {},
+	zones = {},
+	teams = {},
+	entities = {},
+	frame = 0,
+	lastSlow = 0,
+	lastVisual = 0,
+	lastGoalScan = 0,
+	lastDive = 0,
+	lastJump = 0,
+	jumpMoveUntil = 0,
+	lastAttempt = 0,
+	divedFor = nil,
+	forcedChoice = nil,
+	forceUntil = 0,
+	moving = false,
+	positioning = false,
+	dodgeUntil = 0,
+	assist = {},
+	carrierDistance = 100,
+	nextDribble = 0,
+	nextTackle = 0,
+	moveCommand = { expiry = 0 },
+	stamina = false,
+	staminaTime = 0,
+	ballFrame = -1,
+	ownerFrame = -1,
+	motionFrame = -1,
+}
+shared.AngelGKFeatures = Features
+Features.slides = setmetatable({}, { __mode = "k" })
+Features.dribbles = setmetatable({}, { __mode = "k" })
+
+---Read a GUI value.
+local function getValue(name, fallback)
+	local value = values[name]
+	if value == nil then
+		return fallback
+	end
+	return value
+end
+
+---Print a message to the console.
+local function say(message)
+	warn("[GK] " .. message)
+end
+
+---Require a game module with a low identity so it cannot see our environment.
+local function requireModule(path)
+	local cached = Features.modules[path]
+	if cached then
+		return cached
+	end
+	local failedAt = Features.moduleFailures[path]
+	if failedAt and os.clock() - failedAt < 3 then
+		return nil
+	end
+	local instance = replicatedStorage
+	for _, name in ipairs(string.split(path, ".")) do
+		instance = instance and instance:FindFirstChild(name)
+	end
+	if instance and instance:IsA("ModuleScript") then
+		setthreadidentity(2)
+		local ok, module = pcall(require, instance)
+		setthreadidentity(8)
+		if ok and module then
+			Features.modules[path] = module
+			return module
+		end
+	end
+	Features.moduleFailures[path] = os.clock()
+	return nil
+end
+
+---Local character root.
+local function getRoot()
+	local character = localPlayer.Character
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+---Root part of any player.
+local function getPlayerRoot(player)
+	local character = player.Character
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+---Player by user id. Bots have negative ids, so the lookup is protected and returns nil for them.
+local function getPlayerById(userId)
+	local ok, player = pcall(playersService.GetPlayerByUserId, playersService, userId)
+	return ok and player or nil
+end
+
+---Am I the active goalkeeper.
+local function amKeeper()
+	local character = localPlayer.Character
+	return character ~= nil and character:GetAttribute("ActiveGoalkeeper") == true
+end
+
+---Server time the game uses for ball states.
+local function getServerTime()
+	local smoothing = requireModule("Client.Player.CharacterMotionSmoothing")
+	if smoothing and smoothing.GetSmoothedServerTime then
+		local ok, time = pcall(smoothing.GetSmoothedServerTime)
+		if ok and typeof(time) == "number" then
+			return time
+		end
+	end
+	return workspace:GetServerTimeNow()
+end
+
+---Ball position and velocity, read once per frame.
+local function getBallState()
+	if Features.ballFrame == Features.frame then
+		return Features.ballPosition, Features.ballVelocity
+	end
+	Features.ballFrame = Features.frame
+	Features.ballPosition, Features.ballVelocity = nil, nil
+	local root = getRoot()
+	local near = root and root.Position or nil
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+	if renderer and renderer.GetTargetPosition then
+		local okPosition, position = pcall(renderer.GetTargetPosition, nil, near)
+		if okPosition and typeof(position) == "Vector3" then
+			local okVelocity, velocity = pcall(renderer.GetTargetVelocity, nil, near)
+			Features.ballPosition = position
+			Features.ballVelocity = (okVelocity and typeof(velocity) == "Vector3") and velocity or Vector3.zero
+		end
+	end
+	return Features.ballPosition, Features.ballVelocity
+end
+
+---Authoritative ball state (the exact table the game uses for its own dive assist), read once per frame.
+local function getBallMotion()
+	if Features.motionFrame == Features.frame then
+		return Features.motion
+	end
+	Features.motionFrame = Features.frame
+	Features.motion = nil
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+	if renderer and renderer.GetAuthoritativeMovementState then
+		local ok, state = pcall(renderer.GetAuthoritativeMovementState)
+		if ok and typeof(state) == "table" and typeof(state.Position) == "Vector3" then
+			Features.motion = state
+		end
+	end
+	return Features.motion
+end
+
+---User id of whoever holds the ball (bots have negative ids), nil when the ball is free. Read once per frame.
+local function getBallOwnerId()
+	if Features.ownerFrame == Features.frame then
+		return Features.ownerId
+	end
+	Features.ownerFrame = Features.frame
+	Features.ownerId = nil
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+	if not renderer then
+		return nil
+	end
+	if renderer.GetBallOwnedBy then
+		local ok, owned = pcall(renderer.GetBallOwnedBy, localPlayer.UserId)
+		if ok and owned then
+			Features.ownerId = localPlayer.UserId
+			return Features.ownerId
+		end
+	end
+	if renderer.GetOwnedUserId then
+		local ok, userId = pcall(renderer.GetOwnedUserId)
+		if ok and userId then
+			Features.ownerId = userId
+		end
+	end
+	return Features.ownerId
+end
+
+---Is this player on my team (team names are cached by the slow tick).
+local function isTeammate(player)
+	local mine, theirs = Features.myTeam, Features.teams[player]
+	return mine ~= nil and mine == theirs
+end
+
+---Team name of a player as the game sees it.
+local function readTeamName(player)
+	local actorTeams = requireModule("Client.Gameplay.ActorTeams")
+	if actorTeams and actorTeams.GetActorTeamName then
+		local ok, name = pcall(actorTeams.GetActorTeamName, player)
+		if ok and name then
+			return name
+		end
+	end
+	return player.Team and player.Team.Name or nil
+end
+
+---Is a character an opponent (bots count as opponents in Practice, where everyone shares one team).
+local function isOpponentCharacter(character)
+	local mine = Features.myTeam
+	if mine == "Practice" then
+		return character:GetAttribute("ActiveGoalkeeper") ~= true
+	end
+	local actorTeams = requireModule("Client.Gameplay.ActorTeams")
+	if actorTeams and actorTeams.GetCharacterTeamName then
+		local ok, team = pcall(actorTeams.GetCharacterTeamName, character)
+		if ok and team and mine then
+			return team ~= mine
+		end
+	end
+	return true
+end
+
+---Find every goal part, goal mesh and goalkeeper zone (every few seconds).
+local function scanGoals()
+	if os.clock() - Features.lastGoalScan < 3 then
+		return
+	end
+	Features.lastGoalScan = os.clock()
+	local goals, meshes, zones = {}, {}, {}
+	local map = workspace:FindFirstChild("Map")
+	local data = map and map:FindFirstChild("Data")
+	local lobby = workspace:FindFirstChild("Lobby")
+	local practice = lobby and lobby:FindFirstChild("Practice")
+	for _, folder in ipairs({ data, practice and practice:FindFirstChild("Goals") }) do
+		if folder then
+			for _, descendant in ipairs(folder:GetDescendants()) do
+				if descendant:IsA("BasePart") then
+					if descendant.Name == "Goal" then
+						table.insert(goals, descendant)
+					elseif descendant.Name == "GoalMesh" then
+						table.insert(meshes, descendant)
+					end
+				end
+			end
+		end
+	end
+	for _, zone in ipairs({
+		data and data:FindFirstChild("Team1") and data.Team1:FindFirstChild("Goalkeeper"),
+		data and data:FindFirstChild("Team2") and data.Team2:FindFirstChild("Goalkeeper"),
+		practice and practice:FindFirstChild("Goalkeeper"),
+	}) do
+		if zone and zone:IsA("BasePart") then
+			table.insert(zones, zone)
+		end
+	end
+	Features.goals, Features.meshes, Features.zones = goals, meshes, zones
+end
+
+---Slow tick: team names, the goal I defend, my zone and the opponents (not every frame).
+local function refreshWorld()
+	scanGoals()
+	Features.myTeam = readTeamName(localPlayer)
+	for _, player in ipairs(playersService:GetPlayers()) do
+		Features.teams[player] = readTeamName(player)
+	end
+
+	local root = getRoot()
+	if not root then
+		return
+	end
+
+	-- The goal closest to me is the one I defend, the farthest one is the one I attack.
+	local defended, attacked = nil, nil
+	local nearest, farthest = math.huge, -math.huge
+	for _, goal in ipairs(Features.goals) do
+		if goal.Parent then
+			local dist = (goal.Position - root.Position).Magnitude
+			if dist < nearest then
+				defended, nearest = goal, dist
+			end
+			if dist > farthest then
+				attacked, farthest = goal, dist
+			end
+		end
+	end
+	Features.defendedGoal = defended
+	Features.otherGoal = attacked ~= defended and attacked or nil
+
+	local zone, zoneDist = nil, math.huge
+	for _, candidate in ipairs(Features.zones) do
+		if candidate.Parent then
+			local dist = (candidate.Position - root.Position).Magnitude
+			if dist < zoneDist then
+				zone, zoneDist = candidate, dist
+			end
+		end
+	end
+	Features.zone = zone
+
+	local entities = {}
+	for _, player in ipairs(playersService:GetPlayers()) do
+		local character = player.Character
+		local playerRoot = character and character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if player ~= localPlayer and playerRoot and humanoid and not isTeammate(player) then
+			table.insert(entities, { Character = character, RootPart = playerRoot, Humanoid = humanoid, Player = player })
+		end
+	end
+	local characters = workspace:FindFirstChild("Characters")
+	local npcs = characters and characters:FindFirstChild("NPCs")
+	if npcs then
+		for _, npc in ipairs(npcs:GetChildren()) do
+			local npcRoot = npc:FindFirstChild("HumanoidRootPart")
+			local humanoid = npc:FindFirstChildOfClass("Humanoid")
+			if npcRoot and humanoid and isOpponentCharacter(npc) then
+				table.insert(entities, { Character = npc, RootPart = npcRoot, Humanoid = humanoid, Player = nil })
+			end
+		end
+	end
+	Features.entities = entities
+end
+
+---Goal mouth geometry seen from a point (front face plane and lateral axis).
+local function getGoalGeometry(goal, fromPosition)
+	local toward = Vector3.new(fromPosition.X - goal.Position.X, 0, fromPosition.Z - goal.Position.Z)
+	if toward.Magnitude < 0.001 then
+		return nil
+	end
+	toward = toward.Unit
+	local lateral = (-toward):Cross(Vector3.new(0, 1, 0))
+	local cframe, size = goal.CFrame, goal.Size
+	local right, look = cframe.RightVector, cframe.LookVector
+	local halfWidth = math.abs(lateral:Dot(right)) * size.X * 0.5 + math.abs(lateral:Dot(look)) * size.Z * 0.5
+	local halfDepth = math.abs(toward:Dot(right)) * size.X * 0.5 + math.abs(toward:Dot(look)) * size.Z * 0.5
+	return {
+		planePoint = goal.Position + toward * halfDepth,
+		normal = toward,
+		lateral = lateral,
+		halfWidth = halfWidth,
+		center = goal.Position,
+		bottomY = goal.Position.Y - size.Y * 0.5,
+		topY = goal.Position.Y + size.Y * 0.5,
+	}
+end
+
+---Is a point inside a goalkeeper zone.
+local function inZone(zone, position, margin)
+	margin = margin or 0
+	local relative = zone.CFrame:PointToObjectSpace(position)
+	local half = zone.Size * 0.5
+	return math.abs(relative.X) <= half.X + margin and math.abs(relative.Z) <= half.Z + margin and math.abs(relative.Y) <= math.max(half.Y, 1) + 15
+end
+
+---Dive direction name for a world direction, using the camera like the game does.
+local function getDiveName(worldDirection)
+	local camera = workspace.CurrentCamera
+	local root = getRoot()
+	local look = camera and camera.CFrame.LookVector or (root and root.CFrame.LookVector)
+	if not look then
+		return "F", 1
+	end
+	local forward = Vector3.new(look.X, 0, look.Z)
+	if forward.Magnitude < 0.001 then
+		return "F", 1
+	end
+	forward = forward.Unit
+	local right = Vector3.new(-forward.Z, 0, forward.X)
+	local angle = math.deg(math.atan2(worldDirection:Dot(right), worldDirection:Dot(forward)))
+	local index = math.floor(((angle + 22.5) % 360) / 45) + 1
+	return DIRECTION_NAMES[index], worldDirection:Dot(forward)
+end
+
+---Dive direction name for the settings (Auto, Left / Right, Forward Only). Backward dives do not exist:
+---a backward direction is turned into a sideways dive.
+local function chooseDirection(worldDirection)
+	local raw = getDiveName(worldDirection)
+	local mode = getValue("GK Dive Directions", "Auto")
+	if mode == "Forward Only" then
+		return "F"
+	end
+	if raw == "LB" then
+		raw = "L"
+	elseif raw == "RB" then
+		raw = "R"
+	elseif raw == "B" then
+		local camera = workspace.CurrentCamera
+		local look = camera and camera.CFrame.LookVector or Vector3.new(0, 0, -1)
+		raw = worldDirection:Dot(Vector3.new(-look.Z, 0, look.X)) >= 0 and "R" or "L"
+	end
+	if mode == "Left / Right" then
+		local side = string.sub(raw, 1, 1)
+		if side == "L" or side == "R" then
+			return side
+		end
+	end
+	return raw
+end
+
+---Patch a game function and remember how to restore it.
+local function patch(path, name, factory)
+	local module = requireModule(path)
+	if not (module and typeof(module[name]) == "function") then
+		say("missing " .. path .. "." .. name)
+		return false
+	end
+	pcall(setreadonly, module, false)
+	local original = module[name]
+	module[name] = factory(original)
+	table.insert(Features.restores, function()
+		module[name] = original
+	end)
+	return true
+end
+
+---Force the dive direction of the game's own dive while an auto dive is running.
+local function installDivePatch()
+	patch("Modules.Actions.GoalkeeperDive", "GetDirectionChoice", function(original)
+		return function(...)
+			if Features.forcedChoice and os.clock() < Features.forceUntil then
+				return Features.forcedChoice
+			end
+			return original(...)
+		end
+	end)
+end
+
+---While an aimed dive runs, the game gets the aimed direction instead of re-reading the camera every frame.
+local function installDirectionPatch()
+	patch("Modules.Actions.GoalkeeperDive", "GetWorldDirection", function(original)
+		return function(choice, cameraCFrame, fallback)
+			local forced = Features.forcedDirection
+			if forced and os.clock() < Features.forcedDirectionUntil then
+				return forced
+			end
+			return original(choice, cameraCFrame, fallback)
+		end
+	end)
+end
+
+---Run the game's own dive (the same function the Dive key calls).
+local function performDive(name)
+	local role = requireModule("Client.Gameplay.Player.GoalkeeperRole")
+	local dive = requireModule("Modules.Actions.GoalkeeperDive")
+	if not (role and role.Dive and dive and dive.GetDirectionChoiceByName) then
+		return false
+	end
+	Features.forcedChoice = dive.GetDirectionChoiceByName(name)
+	Features.forceUntil = os.clock() + 0.3
+	setthreadidentity(2)
+	local ok, result = pcall(role.Dive)
+	setthreadidentity(8)
+	Features.forcedChoice = nil
+	return ok and result ~= false
+end
+
+---Move the character with the game's own move command.
+local function setMove(direction)
+	local character = localPlayer.Character
+	if not character then
+		return
+	end
+	local move = Vector3.new(direction.X, 0, direction.Z)
+	if move.Magnitude > 0 then
+		move = move.Unit
+	end
+	Features.moving = move.Magnitude > 0
+	local controllers = requireModule("Modules.Characters.CharacterControllers")
+	if controllers and controllers.SetMoveCommand and pcall(controllers.SetMoveCommand, character, move) then
+		return
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid:Move(move, false)
+	end
+end
+
+---Stop the movement we started.
+local function stopMove()
+	if Features.moving then
+		setMove(Vector3.zero)
+	end
+end
+
+---Press and release a key (the game window must be focused).
+local function tapKey(code)
+	if not keypress or (isrbxactive and not isrbxactive()) then
+		return false
+	end
+	task.spawn(function()
+		keypress(code)
+		task.wait(0.06)
+		keyrelease(code)
+	end)
+	return true
+end
+
+---Cooldown gate per action name.
+local function ready(name, seconds)
+	local now = os.clock()
+	if (Features.cooldowns[name] or 0) > now then
+		return false
+	end
+	Features.cooldowns[name] = now + seconds
+	return true
+end
+
+---Jump straight up with the Space key (the game's jump command when the key cannot be pressed).
+local function performJump()
+	if tapKey(KEY_SPACE) then
+		return true
+	end
+	local character = localPlayer.Character
+	if not character then
+		return false
+	end
+	local controllers = requireModule("Modules.Characters.CharacterControllers")
+	if controllers and controllers.SetJumpCommand and pcall(controllers.SetJumpCommand, character, true) then
+		task.delay(0.12, function()
+			pcall(controllers.SetJumpCommand, character, false)
+		end)
+		return true
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.Jump = true
+		return true
+	end
+	return false
+end
+
+---Fixed goal frame (it does not move with the ball): the front face plane, the line of the goal and the field side.
+local function getGoalFrame(goal, zone)
+	local cframe, size = goal.CFrame, goal.Size
+	local horizontal = {}
+	for _, axis in ipairs({ { cframe.RightVector, size.X }, { cframe.UpVector, size.Y }, { cframe.LookVector, size.Z } }) do
+		local flat = Vector3.new(axis[1].X, 0, axis[1].Z)
+		if flat.Magnitude > 0.5 then
+			table.insert(horizontal, { flat.Unit, axis[2] })
+		end
+	end
+	if #horizontal < 2 then
+		return nil
+	end
+	table.sort(horizontal, function(a, b)
+		return a[2] > b[2]
+	end)
+	local widthAxis, width = horizontal[1][1], horizontal[1][2]
+	local depthAxis, depth = horizontal[2][1], horizontal[2][2]
+	-- The normal points from the goal to the field: towards my zone, or the other goal.
+	local reference = zone and (zone.Position - goal.Position) or (Features.otherGoal and (Features.otherGoal.Position - goal.Position)) or depthAxis
+	local normal = depthAxis:Dot(Vector3.new(reference.X, 0, reference.Z)) >= 0 and depthAxis or -depthAxis
+	local planePoint = goal.Position + normal * (depth * 0.5)
+	-- Center on the goal mesh (the visible net) when there is one next to the goal.
+	local mesh, meshDistance = nil, 40
+	for _, candidate in ipairs(Features.meshes) do
+		if candidate.Parent then
+			local distance = (candidate.Position - goal.Position).Magnitude
+			if distance < meshDistance then
+				mesh, meshDistance = candidate, distance
+			end
+		end
+	end
+	if mesh then
+		planePoint = planePoint + widthAxis * (mesh.Position - goal.Position):Dot(widthAxis)
+	end
+	return {
+		planePoint = planePoint,
+		normal = normal,
+		lateral = widthAxis,
+		halfWidth = width * 0.5,
+		center = goal.Position,
+		bottomY = goal.Position.Y - size.Y * 0.5,
+		topY = goal.Position.Y + size.Y * 0.5,
+	}
+end
+
+---Seconds before the ball arrives at which the dive has to start: the time the game's own dive curve needs to
+---cover the distance (a far dive is slow at the end), plus the delay of the connection and a small safety margin.
+local function getDiveLead(distance)
+	local dive = requireModule("Modules.Actions.GoalkeeperDive")
+	local total = dive and dive.Constants and dive.Constants.Distance or 20
+	if dive and dive.GetDistance then
+		local ok, tuned = pcall(dive.GetDistance, localPlayer.Character)
+		if ok and typeof(tuned) == "number" and tuned > 0 then
+			total = tuned
+		end
+	end
+	local needed = math.clamp(distance - DIVE_CONTACT_REACH, 0, total * 0.98)
+	local seconds = 0.2
+	if dive and dive.GetCurveSecondsForTravel then
+		local ok, value = pcall(dive.GetCurveSecondsForTravel, needed, total)
+		if ok and typeof(value) == "number" then
+			seconds = value
+		end
+	end
+	local latency = 0.05 + math.clamp(localPlayer:GetNetworkPing(), 0, 0.3) * 0.5
+	return math.clamp(seconds + latency + DIVE_SAFETY_SECONDS, DIVE_MIN_LEAD, DIVE_MAX_LEAD)
+end
+
+---Auto goalkeeper: predict the ball with the game's own physics, then jump or dive in time.
+---It only acts while the ball is inside my goalkeeper zone, so very far shots are left alone.
+---A ball that goes over me, or a little to my sides, is saved with a jump that leans towards the ball.
+local function stepGoalkeeper(root)
+	local state = getBallMotion()
+	local goal = Features.defendedGoal
+	if not (state and goal) then
+		return
+	end
+	local velocity = state.Velocity or Vector3.zero
+	if velocity.Magnitude < MIN_SHOT_SPEED then
+		return
+	end
+	local shotId = state.StartedAt or state.UpdatedAt
+	if Features.divedFor == shotId then
+		return
+	end
+	-- Only act when the ball is inside my goalkeeper zone.
+	local zone = Features.zone
+	if zone and not inZone(zone, state.Position, ZONE_REACT_MARGIN) then
+		return
+	end
+	-- Shots from my own team are not saved.
+	local kicker = state.LastKickerUserId and getPlayerById(state.LastKickerUserId)
+	if kicker == localPlayer or (kicker and isTeammate(kicker)) then
+		return
+	end
+	if getValue("GK Detection Distance", 120) < (state.Position - root.Position).Magnitude then
+		return
+	end
+	local prediction = requireModule("Modules.Gameplay.GoalkeeperPrediction")
+	local geometry = getGoalGeometry(goal, state.Position)
+	if not (prediction and geometry) then
+		return
+	end
+	-- The ball has to be moving towards the goal.
+	if velocity:Dot(geometry.normal) > -5 then
+		return
+	end
+
+	-- Where the ball crosses the goal line.
+	local okTime, flightTime = pcall(prediction.GetPlaneTime, state, geometry.planePoint, geometry.normal, 0.001)
+	if not okTime or typeof(flightTime) ~= "number" then
+		return
+	end
+	local okPosition, crossing = pcall(prediction.GetBallPositionAtTime, state, flightTime)
+	if not okPosition or typeof(crossing) ~= "Vector3" then
+		return
+	end
+	-- Only shots that end inside the goal mouth.
+	local lateral = (crossing - geometry.center):Dot(geometry.lateral)
+	local tolerance = getValue("Dive Tolerance", 1)
+	if math.abs(lateral) > geometry.halfWidth + 2 + tolerance then
+		return
+	end
+	if crossing.Y > geometry.topY + 1 or crossing.Y < geometry.bottomY - 3 then
+		return
+	end
+
+	-- Where the ball passes my own position (I stand a few studs out of the goal line, so this is earlier).
+	local passTime, passing
+	local okPass, timeAtMe = pcall(prediction.GetPlaneTime, state, root.Position, geometry.normal, 0.001)
+	if okPass and typeof(timeAtMe) == "number" then
+		local okAt, position = pcall(prediction.GetBallPositionAtTime, state, timeAtMe)
+		if okAt and typeof(position) == "Vector3" then
+			passTime, passing = timeAtMe, position
+		end
+	end
+	local target = passing or crossing
+	local targetTime = passTime or flightTime
+	local toTarget = target - root.Position
+	local side = math.abs(toTarget:Dot(geometry.lateral))
+	local height = toTarget.Y
+
+	-- The closer the opponent with the ball (or the ball itself), the sooner and the later the keeper may act.
+	local sinceCarrier = os.clock() - (Features.carrierSeenAt or -math.huge)
+	local reference = sinceCarrier < 0.8 and Features.carrierDistance or (state.Position - root.Position).Magnitude
+	local urgency = math.clamp((URGENCY_FAR - reference) / (URGENCY_FAR - URGENCY_NEAR), 0, 1)
+
+	local jumpOnly = getValue("GK Dive Directions", "Auto") == "Jump Only"
+	-- Over my head or a little to my sides: always a jump. Straight at my body at chest height or above too.
+	local overhead = height >= JUMP_MIN_HEIGHT and height <= JUMP_MAX_HEIGHT and side <= JUMP_MAX_SIDE
+	local headOn = side <= HEAD_ON_SIDE and height >= HEAD_ON_MIN_HEIGHT and height <= JUMP_MAX_HEIGHT
+	local wantsJump = overhead or headOn or (jumpOnly and side <= JUMP_MAX_SIDE)
+
+	-- The dive is decided with the goal line crossing.
+	local flatToCrossing = Vector3.new(crossing.X - root.Position.X, 0, crossing.Z - root.Position.Z)
+	local diveHeight = crossing.Y - root.Position.Y
+	if not wantsJump then
+		-- Jump Only never dives.
+		if jumpOnly then
+			return
+		end
+		-- A high ball that is not above me needs an air dive (or the jump setting) to be reachable.
+		if diveHeight > 5 and not getValue("GK Air Dives", false) and not getValue("GK Jump Saves", false) then
+			return
+		end
+	end
+
+	-- Seconds left. A jump is late, a far dive starts early.
+	local serverNow = getServerTime()
+	local timeLeft = (wantsJump and targetTime or flightTime) - (serverNow - (state.UpdatedAt or serverNow))
+	local extra = (getValue("GK Wait Lookahead (ms)", 80) + getValue("GK Input Lead (ms)", 0)) / 1000
+	local lookahead
+	if wantsJump then
+		lookahead = JUMP_LEAD_SECONDS + extra
+	else
+		lookahead = getDiveLead(flatToCrossing.Magnitude) + extra
+	end
+	lookahead = lookahead + urgency * URGENCY_EXTRA_LEAD
+	if timeLeft > lookahead or timeLeft < -(0.15 + urgency * 0.15) then
+		return
+	end
+
+	-- Friend check: do not act when a teammate is about to play the ball (there is no time for it when the shot is close).
+	if getValue("GK Friend Check", false) and urgency < 0.6 then
+		for _, player in ipairs(playersService:GetPlayers()) do
+			local playerRoot = getPlayerRoot(player)
+			if player ~= localPlayer and playerRoot and isTeammate(player) and (playerRoot.Position - state.Position).Magnitude < 8 then
+				return
+			end
+		end
+	end
+
+	local now = os.clock()
+	if wantsJump then
+		if now - Features.lastJump < JUMP_REPEAT_SECONDS then
+			return
+		end
+		if performJump() then
+			Features.lastJump = now
+			Features.divedFor = shotId
+			-- Lean towards the ball while in the air, so the jump goes to where the ball passes.
+			local lean = Vector3.new(toTarget.X, 0, toTarget.Z)
+			if lean.Magnitude > 1 then
+				Features.jumpMoveDirection = lean
+				Features.jumpMoveUntil = now + JUMP_LEAN_SECONDS
+			end
+			say(string.format("jump (time left %.2f, %.1f above me, %.1f to the side, leaning %s)", timeLeft, height, side, lean.Magnitude > 1 and "yes" or "no"))
+		end
+		return
+	end
+
+	-- A ball that already reaches my body needs no dive.
+	if flatToCrossing.Magnitude < 2 + tolerance then
+		return
+	end
+	if now - Features.lastDive < DIVE_REPEAT_SECONDS or now - Features.lastAttempt < 0.01 then
+		return
+	end
+	Features.lastAttempt = now
+
+	local name = chooseDirection(flatToCrossing.Unit)
+	if performDive(name) then
+		Features.divedFor = shotId
+		Features.lastDive = os.clock()
+		say(string.format("dive %s (time left %.2f, crossing offset %.1f, height %.1f)", name, timeLeft, lateral, diveHeight))
+	end
+end
+
+---Clamp a point so it stays inside my goalkeeper zone.
+local function clampToZone(zone, point)
+	if not zone or inZone(zone, point) then
+		return point
+	end
+	local relative = zone.CFrame:PointToObjectSpace(point)
+	local half = zone.Size * 0.5
+	relative = Vector3.new(math.clamp(relative.X, -half.X + 1, half.X - 1), relative.Y, math.clamp(relative.Z, -half.Z + 1, half.Z - 1))
+	return zone.CFrame:PointToWorldSpace(relative)
+end
+
+---Furthest distance in front of the goal line that is still inside my goalkeeper zone.
+local function getZoneDepth(zone, geometry)
+	if not zone then
+		return POSITION_MAX_DEPTH
+	end
+	local right, look = zone.CFrame.RightVector, zone.CFrame.LookVector
+	local halfDepth = math.abs(geometry.normal:Dot(right)) * zone.Size.X * 0.5 + math.abs(geometry.normal:Dot(look)) * zone.Size.Z * 0.5
+	local centerDistance = (zone.Position - geometry.planePoint):Dot(geometry.normal)
+	return centerDistance + halfDepth
+end
+
+---Where the keeper should stand: centered on the goal, shifted a little to the side of the ball,
+---a few studs out of the goal line and always inside the zone.
+local function getKeeperTarget(root, ballPosition, frame, zone)
+	local halfPost = math.max(frame.halfWidth - 2, 3)
+	local planePoint, normal, lateral = frame.planePoint, frame.normal, frame.lateral
+	local maxDepth = math.max(math.min(POSITION_MAX_DEPTH, getZoneDepth(zone, frame) - 2), POSITION_MIN_DEPTH)
+	local depth = POSITION_HOME_DEPTH
+	local shift = 0
+	if ballPosition then
+		local ballNormal = (ballPosition - planePoint):Dot(normal)
+		local ballLateral = (ballPosition - planePoint):Dot(lateral)
+		-- A little further out when the ball is close, a little closer when it is far (8 to 10 studs).
+		depth = math.clamp(9 + (60 - ballNormal) * 0.02, 8, 10)
+		local factor = getValue("GK Angle Cover", false) and POSITION_SHIFT_COVER or POSITION_SHIFT
+		shift = math.clamp(ballLateral * factor, -halfPost * POSITION_SHIFT_LIMIT, halfPost * POSITION_SHIFT_LIMIT)
+	end
+	depth = math.clamp(depth, POSITION_MIN_DEPTH, maxDepth)
+	local target = planePoint + lateral * shift + normal * depth
+	return clampToZone(zone, Vector3.new(target.X, root.Position.Y, target.Z))
+end
+
+---Auto GK positioning: always stand in the middle of the goal, leaning towards the ball.
+local function stepPositioning(root)
+	if not getValue("Auto GK Positioning", false) then
+		return false
+	end
+	local manual = getValue("GK Manual Override", false)
+		and (userInputService:IsKeyDown(Enum.KeyCode.A) or userInputService:IsKeyDown(Enum.KeyCode.D) or userInputService:IsKeyDown(Enum.KeyCode.W) or userInputService:IsKeyDown(Enum.KeyCode.S))
+	if manual then
+		return false
+	end
+	local goal = Features.defendedGoal
+	local zone = Features.zone
+	local frame = goal and getGoalFrame(goal, zone)
+	if not (frame and zone) then
+		return false
+	end
+	local ballPosition = getBallState()
+	local target = getKeeperTarget(root, ballPosition, frame, zone)
+	local delta = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
+	-- A dead zone while standing and a smaller one while moving keeps the keeper from shaking.
+	local deadZone = Features.positioning and 0.8 or 1.8
+	if delta.Magnitude < deadZone then
+		Features.positioning = false
+		stopMove()
+		return true
+	end
+	Features.positioning = true
+	setMove(delta)
+	return true
+end
+
+---Keeper movement: only while I am inside my zone, and never during a dive or a jump.
+local function stepKeeperMovement(root)
+	local zone = Features.zone
+	if not zone or not inZone(zone, root.Position) then
+		return false
+	end
+	local now = os.clock()
+	if now - Features.lastDive < DIVE_RECOVERY_SECONDS or now - Features.lastJump < 0.6 then
+		return false
+	end
+	return stepPositioning(root)
+end
+
+---Input table for a game action, built from the player's own key binding.
+local function getInput(action)
+	local keybinds = requireModule("Modules.Gameplay.Keybinds")
+	if not (keybinds and keybinds.Get) then
+		return nil
+	end
+	local ok, bind = pcall(keybinds.Get, action)
+	if not ok or not bind then
+		return nil
+	end
+	return {
+		KeyCode = bind.KeyCodes and bind.KeyCodes[1] or Enum.KeyCode.Unknown,
+		UserInputType = bind.InputTypes and bind.InputTypes[1] or Enum.UserInputType.Keyboard,
+		UserInputState = Enum.UserInputState.Begin,
+	}
+end
+
+---Random value between two sliders (the delay of the dribble and the tackle).
+local function randomDelay(minName, maxName)
+	local low, high = getValue(minName, 0), getValue(maxName, 0)
+	if high < low then
+		low, high = high, low
+	end
+	return low + (high - low) * math.random()
+end
+
+---Opponents (players and bots) inside a range of a point.
+local function getEntitiesInRange(origin, range, players, npcs)
+	local list = {}
+	for _, entity in ipairs(Features.entities) do
+		local root = entity.RootPart
+		local wanted = (entity.Player ~= nil and players) or (entity.Player == nil and npcs)
+		if wanted and root.Parent and entity.Humanoid.Health > 0 and (root.Position - origin).Magnitude <= range then
+			table.insert(list, entity)
+		end
+	end
+	return list
+end
+
+---Does the local player hold the ball.
+local function iOwnBall()
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+	if not (renderer and renderer.GetBallOwnedBy) then
+		return false
+	end
+	local ok, owned = pcall(renderer.GetBallOwnedBy, localPlayer.UserId)
+	return ok and owned ~= nil and owned ~= false
+end
+
+---Ball id and state of the match ball (or the nearest practice ball).
+local function getMatchBall()
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+	if not renderer then
+		return nil
+	end
+	local okId, ballId = pcall(renderer.GetMatchBallId)
+	if okId and ballId then
+		local okState, state = pcall(renderer.GetAuthoritativeMovementState)
+		if okState and state then
+			return ballId, state
+		end
+	end
+	local misc = workspace:FindFirstChild("Misc")
+	local visuals = misc and misc:FindFirstChild("Visuals")
+	local root = getRoot()
+	local position = root and root.Position or workspace.CurrentCamera.CFrame.Position
+	local closest, distance = nil, math.huge
+	if visuals then
+		for _, part in ipairs(visuals:GetChildren()) do
+			local id = part.Name:match("^ClientBall_(.+)$")
+			if id and part:IsA("BasePart") then
+				local magnitude = (part.Position - position).Magnitude
+				if magnitude < distance then
+					closest, distance = id, magnitude
+				end
+			end
+		end
+	end
+	if closest then
+		local ok, state = pcall(renderer.GetMovementState, closest)
+		return closest, ok and state or nil
+	end
+	return nil
+end
+
+---Entity that holds the main match ball.
+local function getCarrier()
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+	if not (renderer and renderer.GetMainMatchOwnerUserId) then
+		return nil
+	end
+	local ok, userId = pcall(renderer.GetMainMatchOwnerUserId)
+	if not ok or not userId then
+		return nil
+	end
+	for _, entity in ipairs(Features.entities) do
+		local id = entity.Player and entity.Player.UserId or entity.Character:GetAttribute("UserId")
+		if id == userId then
+			return entity
+		end
+	end
+	return nil
+end
+
+---Move the character with a direction the game keeps for 0.2 seconds (the slide reads it when it starts).
+local function moveCharacter(direction, facing)
+	local character = localPlayer.Character
+	local controllers = requireModule("Modules.Characters.CharacterControllers")
+	if not (character and controllers and controllers.SetMoveCommand) then
+		return
+	end
+	local command = Features.moveCommand
+	command.direction = direction
+	command.facing = facing or (direction.Magnitude > 0.01 and direction or nil)
+	command.expiry = os.clock() + 0.2
+	pcall(controllers.SetMoveCommand, character, direction, command.facing, false)
+end
+
+---Keep the direction of moveCharacter as the move command while it has not expired.
+local function installMovePatch()
+	patch("Modules.Characters.CharacterControllers", "GetMoveCommand", function(original)
+		return function(character, ...)
+			local command = Features.moveCommand
+			if character == localPlayer.Character and command.direction and os.clock() < command.expiry then
+				return command.direction
+			end
+			return original(character, ...)
+		end
+	end)
+end
+
+---Direction an opponent is sliding in, sampled from how his root moves.
+local function getSlideDirection(entity, elapsed, slideTackle)
+	local position = entity.RootPart.Position * Vector3.new(1, 0, 1)
+	local main = elapsed >= slideTackle.Constants.StartupDashHandoffSeconds
+	local sample = Features.slides[entity.Character]
+	if not sample or sample.Main ~= main then
+		Features.slides[entity.Character] = { Position = position, Main = main, Direction = sample and sample.Direction or nil }
+		return sample and sample.Direction or nil
+	end
+	local step = position - sample.Position
+	if step.Magnitude >= 0.3 then
+		local blend = sample.Direction and (sample.Direction + step.Unit) or step.Unit
+		sample.Direction = blend.Magnitude > 0.01 and blend.Unit or step.Unit
+		sample.Position = position
+	end
+	return sample.Direction
+end
+
+---Seconds until an opponent's slide lands on me, nil when it will not.
+local function getImpact(entity, elapsed, localPosition, localVelocity, slideTackle, hitboxes)
+	local forward = getSlideDirection(entity, elapsed, slideTackle)
+	if not forward then
+		return nil
+	end
+	local opens = slideTackle.Constants.HitboxDelaySeconds
+	local closes = opens + slideTackle.Constants.HitboxSeconds
+	local fakeCheck = getValue("Fake Check", true)
+	if fakeCheck and elapsed > closes then
+		return nil
+	end
+	local travelled = slideTackle.GetTravel(elapsed)
+	local size = hitboxes.SlideTackle.Size * 0.5
+	local center = hitboxes.SlideTackle.CFrameOffset.Position
+	for index = 0, 20 do
+		local step = index * 0.025
+		if not fakeCheck or (elapsed + step >= opens and elapsed + step <= closes) then
+			local ahead = entity.RootPart.Position + forward * (slideTackle.GetTravel(elapsed + step) - travelled)
+			local offset = CFrame.lookAt(ahead, ahead + forward):PointToObjectSpace(localPosition + localVelocity * step) - center
+			if math.abs(offset.X) <= size.X and math.abs(offset.Y) <= size.Y and math.abs(offset.Z) <= size.Z then
+				return step
+			end
+		end
+	end
+	return nil
+end
+
+---The opponent whose slide reaches me first.
+local function getTackler(localPosition, localVelocity, slideTackle, hitboxes)
+	local now = workspace:GetServerTimeNow()
+	local best, soonest
+	for _, entity in ipairs(getEntitiesInRange(localPosition, getValue("Dribble Range", 22), true, true)) do
+		local okSliding, sliding = pcall(slideTackle.GetSlidingUntil, entity.Character)
+		if okSliding and sliding and sliding > now and not entity.Character:GetAttribute("Ragdolled") then
+			local animator = getValue("Animation Check", true) and entity.Humanoid:FindFirstChildOfClass("Animator") or nil
+			local playing = animator == nil
+			if animator then
+				for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+					if track.Animation and track.Animation.AnimationId == SLIDE_ANIMATION then
+						playing = true
+						break
+					end
+				end
+			end
+			if playing then
+				local elapsed = now - (sliding - slideTackle.Constants.TotalMotionSeconds)
+				local impact = getValue("Predict Impact", true) and getImpact(entity, elapsed, localPosition, localVelocity, slideTackle, hitboxes) or 0
+				if impact and (not soonest or impact < soonest) then
+					best, soonest = entity, impact
+				end
+			end
+		end
+	end
+	return best, soonest
+end
+
+---An opponent winding up a kick that is lined up on me.
+local function getKicker(localPosition, hitboxes)
+	local aimFacing = requireModule("Modules.Actions.AimFacing")
+	if not (aimFacing and aimFacing.GetFlatDirection) then
+		return nil
+	end
+	local size = hitboxes.Kick.Size * 0.5
+	local center = hitboxes.Kick.CFrameOffset.Position
+	for _, entity in ipairs(getEntitiesInRange(localPosition, getValue("Dribble Kick Range", 18), true, true)) do
+		local animator = entity.Humanoid:FindFirstChildOfClass("Animator")
+		local forward = animator and aimFacing.GetFlatDirection(entity.RootPart.CFrame.LookVector) or nil
+		if forward then
+			for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+				local id = track.Animation and track.Animation.AnimationId
+				local wound = KICK_ANIMATIONS[id] and track.Length > 0.01 and track.TimePosition / track.Length or 0
+				if wound >= getValue("Dribble Kick Charge", 100) / 100 then
+					local ahead = entity.RootPart.Position + entity.RootPart.AssemblyLinearVelocity * Vector3.new(1, 0, 1) * 0.12
+					local offset = CFrame.lookAt(ahead, ahead + forward):PointToObjectSpace(localPosition) - center
+					if math.abs(offset.X) <= size.X + 1 and math.abs(offset.Y) <= size.Y + 1 and math.abs(offset.Z) <= size.Z + 1 then
+						return entity
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
+---Auto dribble: dodge the moment an opponent slides at me (or winds up a kick) while I hold the ball.
+local function stepAutoDribble(root)
+	if not getValue("Auto Dribble", false) or os.clock() < Features.nextDribble then
+		return
+	end
+	local character = localPlayer.Character
+	local dodge = requireModule("Modules.Actions.Dodge")
+	local dodgeInput = requireModule("Client.Gameplay.Actions.Dodge")
+	local slideTackle = requireModule("Modules.Actions.SlideTackle")
+	local hitboxes = requireModule("Modules.Gameplay.HitboxSettings")
+	if not (character and dodge and dodgeInput and slideTackle and hitboxes) or not iOwnBall() then
+		return
+	end
+	local okDribbling, dribbling = pcall(dodge.IsDribbling, character)
+	if okDribbling and dribbling then
+		return
+	end
+
+	local localPosition = root.Position
+	local localVelocity = root.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+	local tackler, impact = getTackler(localPosition, localVelocity, slideTackle, hitboxes)
+	if tackler then
+		if getValue("Predict Impact", true) and impact > getValue("Dribble Lead", 0.3) + math.clamp(localPlayer:GetNetworkPing(), 0, 0.4) then
+			return
+		end
+	elseif not (getValue("Kick Check", true) and getKicker(localPosition, hitboxes)) then
+		return
+	end
+
+	local input = getInput("Dribble")
+	if not input then
+		return
+	end
+	Features.nextDribble = os.clock() + dodge.Constants.CooldownSeconds + randomDelay("Dribble Delay Min", "Dribble Delay Max")
+	pcall(dodgeInput.HandleInputBegan, input, false)
+end
+
+---Direction I am running in, or where the camera looks when I stand still.
+local function getTackleAim(root, humanoid, slideTackle)
+	local moving = humanoid.MoveDirection * Vector3.new(1, 0, 1)
+	if moving.Magnitude > 0.05 then
+		return moving.Unit
+	end
+	local camera = workspace.CurrentCamera
+	local look = camera.CFrame.LookVector * Vector3.new(1, 0, 1)
+	if look.Magnitude > 0.01 then
+		return look.Unit
+	end
+	return slideTackle.GetFlatForward(root)
+end
+
+---The opponent to tackle: the one who holds the ball (ball check) inside the range and the angle.
+local function getTackleTarget(localPosition, root, humanoid, dodge, slideTackle)
+	local _, state = getMatchBall()
+	local carrier = getCarrier()
+	local aim, limit = getTackleAim(root, humanoid, slideTackle), math.cos(math.rad(math.min(getValue("Tackle Angle", 180), 180)))
+	local ballCheck = getValue("Tackle Ball Check", true)
+	local closest, distance = nil, math.huge
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+
+	for _, entity in ipairs(getEntitiesInRange(localPosition, getValue("Tackle Range", 28), getValue("Tackle Players", true), getValue("Tackle NPCs", true))) do
+		local okDribbling, dribbling = pcall(dodge.IsDribbling, entity.Character)
+		if okDribbling and dribbling then
+			Features.dribbles[entity.Character] = os.clock()
+		end
+		local flat = (entity.RootPart.Position - localPosition) * Vector3.new(1, 0, 1)
+		if not (flat.Magnitude > 0.01 and flat.Unit:Dot(aim) < limit) then
+			if not ballCheck then
+				return entity, state
+			end
+			if entity == carrier then
+				return entity, state
+			end
+			if entity.Player and renderer and renderer.GetBallOwnedBy then
+				local ok, owned = pcall(renderer.GetBallOwnedBy, entity.Player.UserId)
+				if ok and owned then
+					return entity, state
+				end
+			end
+			if state and not entity.Player then
+				local magnitude = (entity.RootPart.Position - state.Position).Magnitude
+				if magnitude < distance and magnitude <= 8 then
+					closest, distance = entity, magnitude
+				end
+			end
+		end
+	end
+	return closest, state
+end
+
+---Where the target will be when my slide can reach him.
+local function getTackleContact(target, localPosition, slideTackle, hitboxes)
+	local velocity = target.RootPart.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+	local ahead = -hitboxes.SlideTackle.CFrameOffset.Z
+	local slack = hitboxes.SlideTackle.Size.X * 0.5
+	for index = 0, 12 do
+		local step = slideTackle.Constants.HitboxDelaySeconds + index * 0.025
+		local predicted = target.RootPart.Position + velocity * step
+		local flat = (predicted - localPosition) * Vector3.new(1, 0, 1)
+		if math.abs(flat.Magnitude - (slideTackle.GetTravel(step) + ahead)) <= slack then
+			return step, predicted
+		end
+	end
+	return nil
+end
+
+---Auto tackle: slide at the opponent who has the ball, when his dribble cannot save him.
+local function stepAutoTackle(root, humanoid)
+	if not getValue("Auto Tackle", false) or os.clock() < Features.nextTackle then
+		return
+	end
+	local dodge = requireModule("Modules.Actions.Dodge")
+	local slideTackle = requireModule("Modules.Actions.SlideTackle")
+	local slideInput = requireModule("Client.Gameplay.Actions.SlideTackleInput")
+	local hitboxes = requireModule("Modules.Gameplay.HitboxSettings")
+	if not (dodge and slideTackle and slideInput and hitboxes) or iOwnBall() then
+		return
+	end
+
+	local localPosition = root.Position
+	local target, state = getTackleTarget(localPosition, root, humanoid, dodge, slideTackle)
+	if not target then
+		return
+	end
+	local ballCheck = getValue("Tackle Ball Check", true)
+	if ballCheck and state and (state.Position - localPosition).Magnitude < (target.RootPart.Position - state.Position).Magnitude then
+		return
+	end
+	local okDribbling, dribbling = pcall(dodge.IsDribbling, target.Character)
+	if okDribbling and dribbling then
+		return
+	end
+
+	-- Dodge check: hold the tackle while his dribble is ready, unless he is already inside the safe range.
+	local lastDribble = Features.dribbles[target.Character]
+	if getValue("Tackle Dodge Check", true)
+		and (not lastDribble or os.clock() - lastDribble > dodge.Constants.CooldownSeconds)
+		and (target.RootPart.Position - localPosition).Magnitude > getValue("Tackle Safe Range", 12) then
+		return
+	end
+
+	local _, predicted = getTackleContact(target, localPosition, slideTackle, hitboxes)
+	if not predicted then
+		return
+	end
+	local direction = (predicted - localPosition) * Vector3.new(1, 0, 1)
+	local input = direction.Magnitude > 0.01 and getInput("Tackle") or nil
+	if not input then
+		return
+	end
+
+	direction = direction.Unit
+	if getValue("Tackle Face Target", true) then
+		root.CFrame = CFrame.lookAt(localPosition, localPosition + direction)
+	end
+	moveCharacter(direction)
+	Features.nextTackle = os.clock() + slideTackle.Constants.CooldownSeconds + randomDelay("Tackle Delay Min", "Tackle Delay Max")
+	pcall(slideInput.HandleInputBegan, input, false)
+end
+
+---Walk to a loose ball inside the magnet range (field players only, whatever the Goalkeeper tab says).
+local function stepMagnet(root)
+	if not getValue("Ball Magnet", false) then
+		return false
+	end
+	if getBallOwnerId() ~= nil or amKeeper() then
+		return false
+	end
+	local ballPosition = getBallState()
+	if not ballPosition then
+		return false
+	end
+	local flat = Vector3.new(ballPosition.X - root.Position.X, 0, ballPosition.Z - root.Position.Z)
+	if flat.Magnitude > getValue("Ball Magnet Range", 12) then
+		return false
+	end
+	if flat.Magnitude < 2 then
+		stopMove()
+		return true
+	end
+	setMove(flat)
+	return true
+end
+
+---Is an opponent a valid tackle assist target.
+local function isTackleable(entity)
+	if not (entity.Humanoid.Health > 0 and entity.Character.Parent and entity.RootPart.Parent) then
+		return false
+	end
+	if entity.Character:GetAttribute("Ragdolled") then
+		return false
+	end
+	local dodge = requireModule("Modules.Actions.Dodge")
+	if getValue("Assist Stop On Dribble", true) and dodge then
+		local ok, dribbling = pcall(dodge.IsDribbling, entity.Character)
+		if ok and dribbling then
+			return false
+		end
+	end
+	return true
+end
+
+---Seconds my slide needs to cover a distance.
+local function getAssistContact(distance, slideTackle, hitboxes)
+	local constants = slideTackle.Constants
+	local ahead = -hitboxes.SlideTackle.CFrameOffset.Z
+	for index = 0, 12 do
+		local step = constants.HitboxDelaySeconds + index * 0.025
+		if slideTackle.GetTravel(step) + ahead >= distance then
+			return step
+		end
+	end
+	return constants.HitboxDelaySeconds + constants.HitboxSeconds
+end
+
+---Where the target will be when the slide reaches him.
+local function getAssistAimPoint(entity, elapsed, root, slideTackle, hitboxes)
+	local position = entity.RootPart.Position
+	local flat = (position - root.Position) * Vector3.new(1, 0, 1)
+	local lead = math.max(getAssistContact(flat.Magnitude, slideTackle, hitboxes) - elapsed, 0)
+	return position + entity.RootPart.AssemblyLinearVelocity * Vector3.new(1, 0, 1) * lead
+end
+
+---The opponent my slide should be aimed at (ball check, range and angle).
+local function getAssistTarget(localPosition, direction)
+	local _, state = getMatchBall()
+	local renderer = requireModule("Client.Gameplay.Ball.Renderer")
+	local closest, best = nil, math.cos(math.rad(math.min(getValue("Assist Angle", 180), 180)))
+	for _, entity in ipairs(getEntitiesInRange(localPosition, getValue("Assist Range", 28), getValue("Assist Players", true), getValue("Assist NPCs", true))) do
+		if isTackleable(entity) then
+			local wanted = true
+			if getValue("Assist Ball Check", true) then
+				local carrying = false
+				if entity.Player and renderer and renderer.GetBallOwnedBy then
+					local ok, owned = pcall(renderer.GetBallOwnedBy, entity.Player.UserId)
+					carrying = ok and owned ~= nil and owned ~= false
+				end
+				wanted = carrying or (state ~= nil and entity.Player == nil and (entity.RootPart.Position - state.Position).Magnitude <= 8)
+			end
+			if wanted then
+				local flat = (entity.RootPart.Position - localPosition) * Vector3.new(1, 0, 1)
+				local facing = flat.Magnitude > 0.01 and flat.Unit:Dot(direction) or -1
+				if facing > best then
+					closest, best = entity, facing
+				end
+			end
+		end
+	end
+	return closest
+end
+
+---Tackle assist: aim the slides, steer them while they can be steered and turn the body onto the target.
+local function installTackleAssist()
+	patch("Modules.Actions.SlideTackle", "Run", function(original)
+		return function(root, direction, options, ...)
+			local assist = Features.assist
+			if not (getValue("Tackle Assist", false) and root == getRoot() and typeof(direction) == "Vector3") then
+				return original(root, direction, options, ...)
+			end
+			local slideTackle = requireModule("Modules.Actions.SlideTackle")
+			local hitboxes = requireModule("Modules.Gameplay.HitboxSettings")
+			if not (slideTackle and hitboxes and slideTackle.GetAssistApproachDirection) then
+				return original(root, direction, options, ...)
+			end
+			assist.target, assist.start, assist.aim = getAssistTarget(root.Position, direction), os.clock(), nil
+			local target = assist.target
+			if not target then
+				return original(root, direction, options, ...)
+			end
+
+			local aim = slideTackle.GetAssistApproachDirection(root, getAssistAimPoint(target, 0, root, slideTackle, hitboxes), 0, direction)
+			assist.aim = aim
+			local facing = aim * Vector3.new(1, 0, 1)
+			if getValue("Assist Body Aim", true) and facing.Magnitude > 0.01 then
+				root.CFrame = CFrame.lookAt(root.Position, root.Position + facing)
+			end
+			if getValue("Assist Steer", true) and typeof(options) == "table" and options.GetDirection then
+				local oldGet = options.GetDirection
+				options.GetDirection = function(...)
+					local call = oldGet(...)
+					if not (assist.target and assist.start and getRoot() and isTackleable(assist.target)) then
+						return call
+					end
+					local elapsed = os.clock() - assist.start
+					return slideTackle.GetAssistApproachDirection(root, getAssistAimPoint(assist.target, elapsed, root, slideTackle, hitboxes), elapsed, call)
+				end
+			end
+			return original(root, aim, options, ...)
+		end
+	end)
+
+	patch("Modules.Actions.ActionCommands", "SlideTackle", function(original)
+		return function(...)
+			local call = original(...)
+			local aim = Features.assist.aim
+			if aim and typeof(call) == "table" then
+				call.AimDirection = aim
+			end
+			return call
+		end
+	end)
+end
+
+---Forget the assist target once its slide is over.
+local function stepAssistCleanup()
+	local assist = Features.assist
+	if not (assist.target and assist.start) then
+		return
+	end
+	local slideTackle = requireModule("Modules.Actions.SlideTackle")
+	local constants = slideTackle and slideTackle.Constants
+	if not constants or os.clock() - assist.start > constants.HitboxDelaySeconds + constants.HitboxSeconds or not getRoot() or not isTackleable(assist.target) then
+		assist.target, assist.start, assist.aim = nil, nil, nil
+	end
+end
+
+---Dive towards a point, but never more than 12 degrees away from the direction of the dive choice.
+---That is the same amount the game's own dive assist may turn a dive, so the server accepts it.
+local function performAimedDive(worldDirection)
+	local dive = requireModule("Modules.Actions.GoalkeeperDive")
+	local camera = workspace.CurrentCamera
+	local flat = Vector3.new(worldDirection.X, 0, worldDirection.Z)
+	if not (dive and dive.GetDirectionChoiceByName and camera) or flat.Magnitude < 0.01 then
+		return performDive(chooseDirection(worldDirection))
+	end
+	flat = flat.Unit
+	local name = getDiveName(flat)
+	-- The direction of that choice, seen from the camera (the game combines the choice with the camera look).
+	local look = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z)
+	local choice = dive.GetDirectionChoiceByName(name)
+	if look.Magnitude < 0.01 or not choice then
+		return performDive(name)
+	end
+	look = look.Unit
+	local right = Vector3.new(-look.Z, 0, look.X)
+	local center = (look * choice.Forward + right * choice.Right)
+	if center.Magnitude < 0.01 then
+		return performDive(name)
+	end
+	center = center.Unit
+	-- Turn from the choice direction towards the target, as far as 12 degrees.
+	local angle = math.atan2(center.X * flat.Z - center.Z * flat.X, center.X * flat.X + center.Z * flat.Z)
+	local turn = math.clamp(angle, -DIVE_MAX_YAW, DIVE_MAX_YAW)
+	local cosine, sine = math.cos(turn), math.sin(turn)
+	Features.forcedDirection = Vector3.new(center.X * cosine - center.Z * sine, 0, center.X * sine + center.Z * cosine)
+	Features.forcedDirectionUntil = os.clock() + 1
+	local result = performDive(name)
+	if not result then
+		Features.forcedDirection = nil
+	end
+	return result
+end
+
+---Opponent that holds the ball (only opponents are in the list).
+local function getCarrierEntity()
+	local ownerId = getBallOwnerId()
+	if not ownerId or ownerId == localPlayer.UserId then
+		return nil
+	end
+	for _, entity in ipairs(Features.entities) do
+		local id = entity.Player and entity.Player.UserId or entity.Character:GetAttribute("UserId")
+		if id == ownerId then
+			return entity
+		end
+	end
+	return nil
+end
+
+---Goalkeeper pressure: dive at the opponent with the ball when he is in or next to my zone, and dive at a ball that is very close.
+local function stepGoalkeeperPressure(root)
+	local now = os.clock()
+	if now - Features.lastDive < DIVE_REPEAT_SECONDS or now - Features.lastJump < JUMP_REPEAT_SECONDS or iOwnBall() then
+		return
+	end
+	local jumpOnly = getValue("GK Dive Directions", "Auto") == "Jump Only"
+	local zone = Features.zone
+
+	-- 1) The opponent with the ball is in my zone (or next to it): dive at where he is going once he is on the ground.
+	if getValue("GK Dive Tackle", false) and not jumpOnly and zone then
+		local carrier = getCarrierEntity()
+		if carrier and carrier.RootPart.Parent and inZone(zone, carrier.RootPart.Position, GK_TACKLE_MARGIN) then
+			local carrierRoot = carrier.RootPart
+			local velocity = carrierRoot.AssemblyLinearVelocity
+			-- In the air: wait for him to come down.
+			local airborne = carrierRoot.Position.Y - root.Position.Y > 2.5 or math.abs(velocity.Y) > 12
+			if not airborne then
+				local flatVelocity = Vector3.new(velocity.X, 0, velocity.Z)
+				local target = nil
+				for step = 1, 12 do
+					local seconds = step * 0.06
+					local predicted = carrierRoot.Position + flatVelocity * seconds
+					local gap = Vector3.new(predicted.X - root.Position.X, 0, predicted.Z - root.Position.Z).Magnitude
+					if gap <= DIVE_SPEED * seconds + 1 then
+						target = predicted
+						break
+					end
+				end
+				if target then
+					local toTarget = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
+					if toTarget.Magnitude > 1.5 and toTarget.Magnitude <= GK_DIVE_REACH and performAimedDive(toTarget.Unit) then
+						Features.lastDive = os.clock()
+						say(string.format("dive tackle at the carrier (%.1f studs away)", toTarget.Magnitude))
+						return
+					end
+				end
+			end
+		end
+	end
+
+	-- 2) A free ball that is very close (3 to 5 studs): dive at it, or jump if it is above me.
+	if getValue("GK Close Ball Dive", false) and getBallOwnerId() == nil then
+		local ballPosition, velocity = getBallState()
+		if ballPosition and velocity.Magnitude < MIN_SHOT_SPEED and (not zone or inZone(zone, ballPosition, ZONE_REACT_MARGIN)) then
+			local toBall = Vector3.new(ballPosition.X - root.Position.X, 0, ballPosition.Z - root.Position.Z)
+			if toBall.Magnitude >= CLOSE_BALL_MIN and toBall.Magnitude <= CLOSE_BALL_MAX then
+				if ballPosition.Y - root.Position.Y >= JUMP_MIN_HEIGHT then
+					if performJump() then
+						Features.lastJump = now
+						Features.jumpMoveDirection = toBall
+						Features.jumpMoveUntil = now + JUMP_LEAN_SECONDS
+						say("jump at a close ball above me")
+					end
+				elseif not jumpOnly and performAimedDive(toBall.Unit) then
+					Features.lastDive = os.clock()
+					say(string.format("dive at a close ball (%.1f studs)", toBall.Magnitude))
+				end
+			end
+		end
+	end
+end
+
+---Time changer: keep the clock of the game on the chosen hour, and give it back when it is switched off.
+local function stepTimeChanger()
+	if getValue("Time Changer", false) then
+		if Features.originalClock == nil then
+			Features.originalClock = lightingService.ClockTime
+		end
+		local wanted = getValue("Time Of Day", 12)
+		if math.abs(lightingService.ClockTime - wanted) > 0.01 then
+			lightingService.ClockTime = wanted
+		end
+	elseif Features.originalClock ~= nil then
+		lightingService.ClockTime = Features.originalClock
+		Features.originalClock = nil
+	end
+end
+
+---Unlimited stamina through the game's own sprint module.
+local function stepStamina()
+	local wanted = getValue("Infinite Stamina", false)
+	local now = os.clock()
+	if wanted == Features.stamina and not (wanted and now - Features.staminaTime > 1) then
+		return
+	end
+	local sprint = requireModule("Modules.Actions.Sprint")
+	if sprint and sprint.SetUnlimitedStamina then
+		pcall(sprint.SetUnlimitedStamina, localPlayer, "AngelHub", wanted)
+	end
+	Features.stamina = wanted
+	Features.staminaTime = now
+end
+
+---Create or remove a world adornment depending on a toggle.
+local function syncAdornment(key, wanted, adornee, build)
+	local existing = Features.adornments[key]
+	if wanted and adornee and adornee.Parent then
+		if not existing or existing.Adornee ~= adornee then
+			if existing then
+				existing:Destroy()
+			end
+			existing = build(adornee)
+			existing.Parent = gethui and gethui() or game:GetService("CoreGui")
+			Features.adornments[key] = existing
+		end
+		return existing
+	end
+	if existing then
+		existing:Destroy()
+		Features.adornments[key] = nil
+	end
+	return nil
+end
+
+---Build a highlight on an adornee.
+local function buildHighlight(adornee)
+	local item = Instance.new("Highlight")
+	item.Adornee = adornee
+	item.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	return item
+end
+
+---Highlights: player chams and goal meshes (slow tick, they do not change every frame).
+local function stepWorldVisuals()
+	local color = ESP_COLORS[getValue("ESP Color", "White")] or ESP_COLORS.White
+	local transparency = getValue("ESP Transparency", 0.3)
+	local root = getRoot()
+	local maxDistance = getValue("ESP Max Distance", 500)
+	local chams = getValue("Player Chams", false)
+
+	for _, player in ipairs(playersService:GetPlayers()) do
+		if player ~= localPlayer then
+			local key = "cham" .. player.UserId
+			if chams or Features.adornments[key] then
+				local targetRoot = getPlayerRoot(player)
+				local near = targetRoot ~= nil and root ~= nil and (targetRoot.Position - root.Position).Magnitude <= maxDistance
+				local highlight = syncAdornment(key, chams and near, player.Character, buildHighlight)
+				if highlight then
+					highlight.FillColor, highlight.OutlineColor = color, color
+					highlight.FillTransparency = math.clamp(transparency + 0.2, 0, 1)
+				end
+			end
+		end
+	end
+
+	local goalEsp = getValue("Goal ESP", true)
+	for index = 1, 12 do
+		local mesh = Features.meshes[index]
+		local key = "goal" .. index
+		if goalEsp or Features.adornments[key] then
+			local highlight = syncAdornment(key, goalEsp and mesh ~= nil, mesh, buildHighlight)
+			if highlight then
+				highlight.FillColor, highlight.OutlineColor = ESP_COLORS.Yellow, ESP_COLORS.Yellow
+				highlight.FillTransparency = 0.6
+			end
+		end
+	end
+end
+
+---Ball ESP, drawn every frame only while it is enabled.
+local function stepBallEsp()
+	local circle = Features.ballCircle
+	if not getValue("Ball ESP", false) then
+		if circle and circle.Visible then
+			circle.Visible = false
+		end
+		return
+	end
+	if not Drawing then
+		return
+	end
+	local camera = workspace.CurrentCamera
+	local ballPosition = getBallState()
+	if not (camera and ballPosition) then
+		if circle then
+			circle.Visible = false
+		end
+		return
+	end
+	if not circle then
+		circle = Drawing.new("Circle")
+		circle.Radius = 11
+		circle.Thickness = 2
+		circle.Color = Color3.fromRGB(255, 205, 40)
+		Features.ballCircle = circle
+	end
+	local position, onScreen = camera:WorldToViewportPoint(ballPosition)
+	circle.Visible = onScreen
+	if onScreen then
+		circle.Position = Vector2.new(position.X, position.Y)
+		circle.Transparency = 1 - getValue("ESP Transparency", 0.3)
+	end
+end
+
+---Remove everything and give back what we took.
+function Features.detach()
+	for _, connection in ipairs(Features.connections) do
+		connection:Disconnect()
+	end
+	table.clear(Features.connections)
+	for _, restore in ipairs(Features.restores) do
+		pcall(restore)
+	end
+	table.clear(Features.restores)
+	if Features.ballCircle then
+		pcall(function()
+			Features.ballCircle:Remove()
+		end)
+		Features.ballCircle = nil
+	end
+	for _, item in pairs(Features.adornments) do
+		pcall(function()
+			item:Destroy()
+		end)
+	end
+	table.clear(Features.adornments)
+	if Features.originalClock ~= nil then
+		lightingService.ClockTime = Features.originalClock
+		Features.originalClock = nil
+	end
+	local sprint = requireModule("Modules.Actions.Sprint")
+	if sprint and Features.stamina then
+		pcall(sprint.SetUnlimitedStamina, localPlayer, "AngelHub", false)
+	end
+	pcall(stopMove)
+end
+
+---Run a step and warn once if it fails, so one error never stops the rest. Returns the step result.
+local function guard(name, step, ...)
+	local ok, result = pcall(step, ...)
+	if not ok then
+		if not Features["warned" .. name] then
+			Features["warned" .. name] = true
+			warn("[GK] " .. name .. " error: " .. tostring(result))
+		end
+		return false
+	end
+	return result
+end
+
+---One frame of every feature. It runs on RenderStepped, where the movement command is applied.
+local function onFrame()
+	if not (shared.KaliHubGui and shared.KaliHubGui.Parent) then
+		return Features.detach()
+	end
+	Features.frame = Features.frame + 1
+	local now = os.clock()
+
+	if now - Features.lastSlow >= SLOW_TICK_SECONDS then
+		Features.lastSlow = now
+		guard("world", refreshWorld)
+	end
+	if now - Features.lastVisual >= VISUAL_TICK_SECONDS then
+		Features.lastVisual = now
+		guard("visuals", stepWorldVisuals)
+		guard("stamina", stepStamina)
+	end
+	guard("ballesp", stepBallEsp)
+	guard("time", stepTimeChanger)
+	guard("assistclean", stepAssistCleanup)
+
+	local root = getRoot()
+	if not root then
+		return
+	end
+	local keeper = amKeeper()
+	if keeper then
+		-- Remember how close the opponent with the ball is, to react faster to his shot.
+		local carrier = getCarrierEntity()
+		if carrier and carrier.RootPart.Parent then
+			local gap = carrier.RootPart.Position - root.Position
+			Features.carrierDistance = Vector3.new(gap.X, 0, gap.Z).Magnitude
+			Features.carrierSeenAt = now
+		end
+	end
+	if keeper and getValue("Auto Goalkeeper", false) then
+		guard("goalkeeper", stepGoalkeeper, root)
+	end
+	if keeper and (getValue("GK Dive Tackle", false) or getValue("GK Close Ball Dive", false)) then
+		guard("pressure", stepGoalkeeperPressure, root)
+	end
+	local moved = false
+	if keeper then
+		if getValue("Auto GK Positioning", false) then
+			moved = guard("movement", stepKeeperMovement, root)
+		end
+	else
+		moved = guard("magnet", stepMagnet, root)
+	end
+	-- While a jump is in the air, lean towards the ball.
+	if keeper and Features.jumpMoveDirection and os.clock() < Features.jumpMoveUntil then
+		setMove(Features.jumpMoveDirection)
+		moved = true
+	end
+	if not moved and Features.moving and now >= Features.dodgeUntil then
+		stopMove()
+	end
+	if not keeper then
+		if getValue("Auto Dribble", false) then
+			guard("dribble", stepAutoDribble, root)
+		end
+		if getValue("Auto Tackle", false) then
+			local humanoid = localPlayer.Character and localPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				guard("tackle", stepAutoTackle, root, humanoid)
+			end
+		end
+	end
+end
+
+---Start features.
+local function initializeFeatures()
+	if shared.AngelGKFeaturesPrevious then
+		pcall(shared.AngelGKFeaturesPrevious.detach)
+	end
+	shared.AngelGKFeaturesPrevious = Features
+	refreshWorld()
+	installDivePatch()
+	installDirectionPatch()
+	installMovePatch()
+	installTackleAssist()
+	table.insert(Features.connections, runService.RenderStepped:Connect(onFrame))
+	warn("[GK] Angel Hub goalkeeper features loaded.")
+end
+
+local function onInitializeError(err)
+	warn("[GK] features failed: " .. tostring(err))
+	warn(debug.traceback())
+end
+
+xpcall(initializeFeatures, onInitializeError)
+end
