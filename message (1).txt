@@ -4,6 +4,7 @@ do
 local playersService = game:GetService("Players")
 local userInputService = game:GetService("UserInputService")
 local httpService = game:GetService("HttpService")
+local tweenService = game:GetService("TweenService")
 
 -- Constants.
 local WINDOW_WIDTH = 420
