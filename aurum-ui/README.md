@@ -6,15 +6,31 @@ imágenes, íconos o fuentes por ID.
 
 ```
 aurum-ui/
-└── AurumMenu.luau   ← script único, listo para ejecutar
+├── AurumMenu.luau   ← script único, listo para ejecutar
+└── loader.luau      ← loader: lo descarga del repo y lo ejecuta
 ```
 
 ## Cómo ejecutarlo
 
+### Opción A — con el loader (recomendado)
+
+Pega el contenido de `loader.luau` en tu ejecutor y dale *Execute*. Descarga el
+menú desde el repo, comprueba que el contenido sea el correcto y lo ejecuta.
+
+Versión de una línea:
+
+```lua
+loadstring(game:HttpGet("https://raw.githubusercontent.com/XzAngel19/TestingStuff/arena/580a8767-testingstuff/aurum-ui/AurumMenu.luau"))()
+```
+
+### Opción B — pegado directo
+
 1. Copia el contenido de `AurumMenu.luau`.
 2. Pégalo en tu ejecutor y dale *Execute* (o pégalo en un `LocalScript` de
    `StarterPlayerScripts` para probarlo en Studio).
-3. **RightShift** muestra/oculta el menú.
+
+En ambos casos: **RightShift** muestra/oculta el menú. Requiere `loadstring` y
+`game:HttpGet`, presentes en cualquier ejecutor moderno.
 
 El `ScreenGui` se crea dentro de `gethui()`. Si no está disponible (Studio o un
 entorno sin esa función), cae automáticamente a `CoreGui` y luego a `PlayerGui`.
